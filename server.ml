@@ -16,7 +16,9 @@ let name = "ffs"
 let major_version = 0
 let minor_version = 1
 
+module Implementation = struct
+  include Storage_skeleton
+end
 
-type context = unit
+module Server = Storage_interface.Server(Implementation)
 
-let process _ _ = Rpc.failure (Rpc.String "not implemented")
