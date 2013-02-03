@@ -15,10 +15,7 @@
 module D = Debug.Make(struct let name = "ffs" end)
 open D
 
-let name = "ffs"
-
-let major_version = 0
-let minor_version = 1
+open Server
 
 (* Server configuration. We have built-in (hopefully) sensible defaults,
    together with a configuration file.
@@ -209,3 +206,5 @@ let main () =
   (* Unixext.pidfile_write !pidfile; *) (* XXX *)
 
   start domain_sock
+
+let _ = main ()

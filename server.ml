@@ -12,6 +12,11 @@
  * GNU Lesser General Public License for more details.
  *)
 
+let name = "ffs"
+let major_version = 0
+let minor_version = 1
+
+
 type context = unit
 
 let process _ _ = Rpc.failure (Rpc.String "not implemented")
