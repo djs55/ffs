@@ -18,6 +18,8 @@
 module D = Debug.Make(struct let name = "config" end)
 open D
 
+type spec = string * Arg.spec * (unit -> string) * string
+
 open Arg
 
 let finally f g =
