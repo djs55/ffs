@@ -35,7 +35,7 @@ let config_spec = [
         List.iter Debug.disable modules
       with e ->
         error "Processing disabled-logging-for = %s: %s" x (Printexc.to_string e)
-    ), (fun () -> "XXX"), "A space-separated list of debug modules to suppress logging from";
+    ), (fun () -> String.concat " " (!Debug.disabled_modules)), "A space-separated list of debug modules to suppress logging from";
   "config", Arg.Set_string config_file, (fun () -> !config_file), "Location of configuration file";
 ] @ Path.config_spec
 
