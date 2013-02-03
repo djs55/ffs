@@ -75,13 +75,14 @@ let http_handler s () =
       begin match Request.meth req, Uri.path (Request.uri req) with
       | `GET, "/" ->
         let response_txt = "<html><body>Hello there</body></html>" in
+        let content_length = String.length response_txt in
         let headers = Cohttp.Header.of_list [
           "user-agent", "xenopsd";
-          "content-length", string_of_int (String.length response_txt)
+          "content-length", string_of_int content_length;
         ] in
-        let response = Response.make ~version:`HTTP_1_1 ~status:`OK ~headers () in
+        let response = Response.make ~version:`HTTP_1_1 ~status:`OK ~headers ~encoding:(Cohttp.Transfer.Fixed content_length) () in
         Response.write (fun t oc -> Response.write_body t oc response_txt) response oc
-      | `POST, "/" ->
+      | `POST, _ ->
         begin match Request.header req "content-length" with
         | None ->
           debug "Failed to read content-length"
@@ -89,21 +90,26 @@ let http_handler s () =
           let content_length = int_of_string content_length in
           let request_txt = String.make content_length '\000' in
           really_input ic request_txt 0 content_length;
-          let rpc_call = Jsonrpc.call_of_string request_txt in
+          let rpc_call = Xmlrpc.call_of_string request_txt in
+          debug "%s" (Rpc.string_of_call rpc_call);
           let rpc_response = Server.process () rpc_call in
-          let response_txt = Jsonrpc.string_of_response rpc_response in
+          debug "   %s" (Rpc.string_of_response rpc_response);
+          let response_txt = Xmlrpc.string_of_response rpc_response in
+          let content_length = String.length response_txt in
           let headers = Cohttp.Header.of_list [
             "user-agent", name;
-            "content-length", string_of_int (String.length response_txt)
+            "content-length", string_of_int content_length;
           ] in
-          let response = Response.make ~version:`HTTP_1_1 ~status:`OK ~headers () in
+          let response = Response.make ~version:`HTTP_1_1 ~status:`OK ~headers ~encoding:(Cohttp.Transfer.Fixed content_length) () in
           Response.write (fun t oc -> Response.write_body t oc response_txt) response oc
         end
       | _, _ ->
+        let content_length = 0 in
         let headers = Cohttp.Header.of_list [
           "user-agent", name;
+          "content-length", string_of_int content_length;
         ] in
-        let response = Response.make ~version:`HTTP_1_1 ~status:`Not_found ~headers () in
+        let response = Response.make ~version:`HTTP_1_1 ~status:`Not_found ~headers ~encoding:(Cohttp.Transfer.Fixed content_length) () in
         Response.write (fun t oc -> ()) response oc
       end
 
