@@ -1,0 +1,10 @@
+name: ffs
+version: 0.0.0
+synopsis: XCP storage backend using flat files
+obuild-ver: 1
+
+executable ffs
+  main: main.ml
+  src-dir: .
+  build-deps: xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, syslog
+  pp: camlp4o
