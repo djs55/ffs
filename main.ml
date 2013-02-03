@@ -211,6 +211,9 @@ let main () =
   mkdir_rec (Filename.dirname !pidfile) 0o755;
   (* Unixext.pidfile_write !pidfile; *) (* XXX *)
 
-  start domain_sock
+  start domain_sock;
+  while true do
+    Thread.delay 60.
+  done
 
 let _ = main ()
