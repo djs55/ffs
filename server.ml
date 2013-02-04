@@ -39,25 +39,30 @@ type sr = {
 } with rpc
 type srs = (string * sr) list with rpc
 
-let read_lines ic =
-  let results = ref [] in
+let string_of_file filename =
+  let ic = open_in filename in
+  let output = Buffer.create 1024 in
   try
     while true do
-      results := input_line ic :: !results
+      let block = String.make 4096 '\000' in
+      let n = input ic block 0 (String.length block) in
+      if n = 0 then raise End_of_file;
+      Buffer.add_substring output block 0 n
     done;
-    [] (* never happens *)
+    "" (* never happens *)
   with End_of_file ->
-    List.rev !results
+    close_in ic;
+    Buffer.contents output
 
 let run cmd =
   info "shell %s" cmd;
   let f = Filename.temp_file name name in
   let _ = Sys.command (Printf.sprintf "%s > %s" cmd f) in
-  let ic = open_in f in
-  let output = read_lines ic in
-  close_in ic;
+  let output = string_of_file f in
   let _ = Sys.command (Printf.sprintf "rm %s" f) in
   output
+
+let ( |> ) a b = b a
 
 open Storage_interface
 
@@ -76,9 +81,7 @@ module Attached_srs = struct
   let load () =
     if Sys.file_exists state_path then begin
       info "Loading state from: %s" state_path;
-      let ic = open_in state_path in
-      let all = input_line ic in
-      close_in ic;
+      let all = string_of_file state_path in
       let srs = srs_of_rpc (Jsonrpc.of_string all) in
       Hashtbl.clear table;
       List.iter (fun (id, sr) -> Hashtbl.replace table id sr) srs
@@ -120,11 +123,48 @@ module Implementation = struct
     let diagnostics ctx ~dbg = "Not available"
   end
   module DP = struct include Storage_skeleton.DP end
-  module VDI = struct include Storage_skeleton.VDI end
+  module VDI = struct
+    include Storage_skeleton.VDI
+
+    let vdi_info_of path =
+        let md_path = path ^ ".json" in
+        if Sys.file_exists md_path then begin
+          let txt = string_of_file md_path in
+          Some (vdi_info_of_rpc (Jsonrpc.of_string txt))
+        end else begin
+          let open Unix.LargeFile in
+          let stats = stat path in
+          if stats.st_kind = Unix.S_REG then Some {
+            vdi = Filename.basename path;
+            content_id = "";
+            name_label = Filename.basename path;
+            name_description = "";
+            ty = "user";
+            metadata_of_pool = "";
+            is_a_snapshot = false;
+            snapshot_time = "";
+            snapshot_of = "";
+            read_only = false;
+            virtual_size = stats.st_size;
+            physical_utilisation = stats.st_size;
+            sm_config = [];
+            persistent = true;
+          } else None
+        end
+  end
   module SR = struct
     open Storage_skeleton.SR
     let list = list
-    let scan = scan
+    let scan ctx ~dbg ~sr =
+       let sr = Attached_srs.get sr in
+       Sys.readdir sr.path
+       |> Array.to_list
+       |> List.map (Filename.concat sr.path)
+       |> List.map VDI.vdi_info_of
+       |> List.fold_left (fun acc x -> match x with
+          | None -> acc
+          | Some x -> x :: acc) []
+
     let destroy = destroy
     let reset = reset
     let detach ctx ~dbg ~sr =
