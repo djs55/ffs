@@ -29,7 +29,8 @@ let configuration = [
    _path, "path in the filesystem to store images and metadata";
 ]
 
-let state_path = Printf.sprintf "/var/run/nonpersistent/%s.json" name
+let json_suffix = ".json"
+let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
 
 module D = Debug.Make(struct let name = "ffs" end)
 open D
@@ -61,6 +62,11 @@ let run cmd =
   let output = string_of_file f in
   let _ = Sys.command (Printf.sprintf "rm %s" f) in
   output
+
+let endswith suffix x =
+  let suffix' = String.length suffix in
+  let x' = String.length x in
+  x' >= suffix' && (String.sub x (x' - suffix') suffix' = suffix)
 
 let ( |> ) a b = b a
 
@@ -127,14 +133,14 @@ module Implementation = struct
     include Storage_skeleton.VDI
 
     let vdi_info_of path =
-        let md_path = path ^ ".json" in
+        let md_path = path ^ json_suffix in
         if Sys.file_exists md_path then begin
           let txt = string_of_file md_path in
           Some (vdi_info_of_rpc (Jsonrpc.of_string txt))
         end else begin
           let open Unix.LargeFile in
           let stats = stat path in
-          if stats.st_kind = Unix.S_REG then Some {
+          if stats.st_kind = Unix.S_REG && not (endswith json_suffix path) then Some {
             vdi = Filename.basename path;
             content_id = "";
             name_label = Filename.basename path;
