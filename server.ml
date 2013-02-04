@@ -163,13 +163,16 @@ module Implementation = struct
     let list = list
     let scan ctx ~dbg ~sr =
        let sr = Attached_srs.get sr in
-       Sys.readdir sr.path
-       |> Array.to_list
-       |> List.map (Filename.concat sr.path)
-       |> List.map VDI.vdi_info_of
-       |> List.fold_left (fun acc x -> match x with
-          | None -> acc
-          | Some x -> x :: acc) []
+       if not(Sys.file_exists sr.path)
+       then []
+       else
+          Sys.readdir sr.path
+            |> Array.to_list
+            |> List.map (Filename.concat sr.path)
+            |> List.map VDI.vdi_info_of
+            |> List.fold_left (fun acc x -> match x with
+               | None -> acc
+               | Some x -> x :: acc) []
 
     let destroy = destroy
     let reset = reset
