@@ -98,6 +98,16 @@ let endswith suffix x =
   let x' = String.length x in
   x' >= suffix' && (String.sub x (x' - suffix') suffix' = suffix)
 
+let iso8601_of_float x = 
+  let time = Unix.gmtime x in
+  Printf.sprintf "%04d%02d%02dT%02d:%02d:%02dZ"
+    (time.Unix.tm_year+1900)
+    (time.Unix.tm_mon+1)
+    time.Unix.tm_mday
+    time.Unix.tm_hour
+    time.Unix.tm_min
+    time.Unix.tm_sec
+
 let ( |> ) a b = b a
 
 open Storage_interface
@@ -217,7 +227,7 @@ module Implementation = struct
             ty = "user";
             metadata_of_pool = "";
             is_a_snapshot = false;
-            snapshot_time = "";
+            snapshot_time = iso8601_of_float 0.;
             snapshot_of = "";
             read_only = false;
             virtual_size = stats.st_size;
@@ -242,7 +252,10 @@ module Implementation = struct
 
     let create ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
-      let vdi_info = { vdi_info with vdi = choose_filename sr vdi_info } in
+      let vdi_info = { vdi_info with
+        vdi = choose_filename sr vdi_info;
+        snapshot_time = iso8601_of_float 0.
+      } in
       let vdi_path = vdi_path_of sr vdi_info.vdi in
       let md_path = md_path_of sr vdi_info.vdi in
 
@@ -298,7 +311,10 @@ module Implementation = struct
        end;
        let path = List.assoc _path device_config in
        Attached_srs.put sr { path }
-    let create ctx ~dbg ~sr ~device_config ~physical_size = ()
+    let create ctx ~dbg ~sr ~device_config ~physical_size =
+       (* attach will validate the device_config parameters *)
+       attach ctx ~dbg ~sr ~device_config;
+       detach ctx ~dbg ~sr
   end
   module UPDATES = struct include Storage_skeleton.UPDATES end
   module TASK = struct include Storage_skeleton.TASK end
