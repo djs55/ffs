@@ -22,7 +22,12 @@ let major_version = 0
 let version = Printf.sprintf "%d.%d" major_version minor_version
 let required_api_version = "2.0"
 let features = [
-
+  "VDI_CREATE", 0L;
+  "VDI_DELETE", 0L;
+  "VDI_ATTACH", 0L;
+  "VDI_DETACH", 0L;
+  "VDI_ACTIVATE", 0L;
+  "VDI_DEACTIVATE", 0L;
 ]
 let _path = "path"
 let configuration = [
