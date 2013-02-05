@@ -268,8 +268,8 @@ module Implementation = struct
       let sr = Attached_srs.get sr in
       let path = vdi_path_of sr vdi in
       Losetup.remove path
-    let activate ctx ~dbg ~dp ~sr ~vdi = assert false
-    let deactivate ctx ~dbg ~dp ~sr ~vdi = assert false
+    let activate ctx ~dbg ~dp ~sr ~vdi = ()
+    let deactivate ctx ~dbg ~dp ~sr ~vdi = ()
   end
   module SR = struct
     open Storage_skeleton.SR
