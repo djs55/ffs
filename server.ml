@@ -40,6 +40,15 @@ type sr = {
 } with rpc
 type srs = (string * sr) list with rpc
 
+let finally f g =
+  try
+    let result = f () in
+    g ();
+    result
+  with e ->
+    g ();
+    raise e
+
 let string_of_file filename =
   let ic = open_in filename in
   let output = Buffer.create 1024 in
@@ -55,6 +64,14 @@ let string_of_file filename =
     close_in ic;
     Buffer.contents output
 
+let file_of_string filename string =
+  let oc = open_out filename in
+  finally
+    (fun () ->
+      debug "write >%s %s" filename string;
+      output oc string 0 (String.length string)
+    ) (fun () -> close_out oc)
+
 let run cmd =
   info "shell %s" cmd;
   let f = Filename.temp_file name name in
@@ -62,6 +79,16 @@ let run cmd =
   let output = string_of_file f in
   let _ = Sys.command (Printf.sprintf "rm %s" f) in
   output
+
+let startswith prefix x =
+  let prefix' = String.length prefix in
+  let x' = String.length x in
+  x' >= prefix' && (String.sub x 0 prefix' = prefix)
+
+let remove_prefix prefix x =
+  let prefix' = String.length prefix in
+  let x' = String.length x in
+  String.sub x prefix' (x' - prefix')
 
 let endswith suffix x =
   let suffix' = String.length suffix in
@@ -80,10 +107,7 @@ module Attached_srs = struct
     let dir = Filename.dirname state_path in
     if not(Sys.file_exists dir)
     then ignore (run (Printf.sprintf "mkdir -p %s" dir));
-    let oc = open_out state_path in
-    output_string oc txt;
-    flush oc;
-    close_out oc
+    file_of_string state_path txt
   let load () =
     if Sys.file_exists state_path then begin
       info "Loading state from: %s" state_path;
@@ -130,9 +154,28 @@ module Implementation = struct
   end
   module DP = struct include Storage_skeleton.DP end
   module VDI = struct
-    include Storage_skeleton.VDI
+    (* The following are all not implemented: *)
+    open Storage_skeleton.VDI
+    let clone = clone
+    let snapshot = snapshot
+    let epoch_begin = epoch_begin
+    let epoch_end = epoch_end
+    let get_url = get_url
+    let set_persistent = set_persistent
+    let compose = compose
+    let similar_content = similar_content
+    let add_to_sm_config = add_to_sm_config
+    let remove_from_sm_config = remove_from_sm_config
+    let set_content_id = set_content_id
+    let get_by_name = get_by_name
 
-    let vdi_info_of path =
+    let vdi_path_of sr vdi =
+        Filename.concat sr.path vdi
+
+    let md_path_of sr vdi =
+        vdi_path_of sr vdi ^ json_suffix
+
+    let vdi_info_of_path path =
         let md_path = path ^ json_suffix in
         if Sys.file_exists md_path then begin
           let txt = string_of_file md_path in
@@ -157,6 +200,41 @@ module Implementation = struct
             persistent = true;
           } else None
         end
+
+    let choose_filename sr vdi_info =
+      let existing = Sys.readdir sr.path |> Array.to_list in
+      if not(List.mem vdi_info.name_label existing)
+      then vdi_info.name_label
+      else
+        let stem = vdi_info.name_label ^ "." in
+        let with_common_prefix = List.filter (startswith stem) existing in
+        let suffixes = List.map (remove_prefix stem) with_common_prefix in
+        let highest_number = List.fold_left (fun acc suffix ->
+          let this = try int_of_string suffix with _ -> 0 in
+          max acc this) 0 suffixes in
+        stem ^ (string_of_int (highest_number + 1))
+
+    let create ctx ~dbg ~sr ~vdi_info =
+      let sr = Attached_srs.get sr in
+      let vdi_info = { vdi_info with vdi = choose_filename sr vdi_info } in
+      let vdi_path = vdi_path_of sr vdi_info.vdi in
+      let md_path = md_path_of sr vdi_info.vdi in
+
+      ignore(run(Printf.sprintf "dd if=/dev/zero of=%s seek=%Ld count=1 bs=1" vdi_path vdi_info.virtual_size));
+      file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
+      vdi_info
+
+    let destroy ctx ~dbg ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      if not(Sys.file_exists (vdi_path_of sr vdi)) && not(Sys.file_exists (md_path_of sr vdi))
+      then raise (Vdi_does_not_exist vdi);
+      ignore(run(Printf.sprintf "rm -f %s %s" (vdi_path_of sr vdi) (md_path_of sr vdi)))
+
+    let stat ctx ~dbg ~sr ~vdi = assert false
+    let attach ctx ~dbg ~dp ~sr ~vdi ~read_write = assert false
+    let detach ctx ~dbg ~dp ~sr ~vdi = assert false
+    let activate ctx ~dbg ~dp ~sr ~vdi = assert false
+    let deactivate ctx ~dbg ~dp ~sr ~vdi = assert false
   end
   module SR = struct
     open Storage_skeleton.SR
@@ -169,7 +247,7 @@ module Implementation = struct
           Sys.readdir sr.path
             |> Array.to_list
             |> List.map (Filename.concat sr.path)
-            |> List.map VDI.vdi_info_of
+            |> List.map VDI.vdi_info_of_path
             |> List.fold_left (fun acc x -> match x with
                | None -> acc
                | Some x -> x :: acc) []
