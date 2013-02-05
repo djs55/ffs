@@ -75,10 +75,13 @@ let file_of_string filename string =
 let run cmd =
   info "shell %s" cmd;
   let f = Filename.temp_file name name in
-  let _ = Sys.command (Printf.sprintf "%s > %s" cmd f) in
+  let cmdline = Printf.sprintf "%s > %s 2>&1" cmd f in
+  let code = Sys.command cmdline in
   let output = string_of_file f in
   let _ = Sys.command (Printf.sprintf "rm %s" f) in
-  output
+  if code = 0
+  then output
+  else failwith (Printf.sprintf "%s: %d: %s" cmdline code output)
 
 let startswith prefix x =
   let prefix' = String.length prefix in
@@ -132,6 +135,29 @@ module Attached_srs = struct
     if not(Hashtbl.mem table id)
     then raise (Sr_not_attached id)
     else Hashtbl.remove table id
+end
+
+module Losetup = struct
+  let find file =
+    (* /dev/loop0: [0801]:196616 (/tmp/foo/bar) *)
+    match Re_str.split_delim (Re_str.regexp_string ":") (run (Printf.sprintf "losetup -j %s" file)) with
+    | device :: _ -> Some device
+    | _ -> None
+
+  let add file read_write =
+      match find file with
+      | None ->
+        ignore (run (Printf.sprintf "losetup %s -f %s" (if read_write then "" else "-r") file));
+        begin match find file with
+        | None -> failwith (Printf.sprintf "Failed to add a loop device for %s" file)
+        | Some x -> x
+        end
+      | Some x -> x
+
+  let remove file =
+      match find file with
+      | None -> ()
+      | Some device -> ignore (run (Printf.sprintf "losetup -d %s" device))
 end
 
 module Implementation = struct
@@ -231,8 +257,17 @@ module Implementation = struct
       ignore(run(Printf.sprintf "rm -f %s %s" (vdi_path_of sr vdi) (md_path_of sr vdi)))
 
     let stat ctx ~dbg ~sr ~vdi = assert false
-    let attach ctx ~dbg ~dp ~sr ~vdi ~read_write = assert false
-    let detach ctx ~dbg ~dp ~sr ~vdi = assert false
+    let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
+      let sr = Attached_srs.get sr in
+      let path = vdi_path_of sr vdi in
+      let device = Losetup.add path read_write in {
+        params = device;
+        xenstore_data = []
+      }
+    let detach ctx ~dbg ~dp ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let path = vdi_path_of sr vdi in
+      Losetup.remove path
     let activate ctx ~dbg ~dp ~sr ~vdi = assert false
     let deactivate ctx ~dbg ~dp ~sr ~vdi = assert false
   end
