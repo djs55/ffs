@@ -12,6 +12,8 @@
  * GNU Lesser General Public License for more details.
  *)
 
+open Xcp_service
+
 let driver = "ffs"
 let name = "ffs"
 let description = "Flat File Storage Repository for XCP"
