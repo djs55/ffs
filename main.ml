@@ -34,7 +34,7 @@ let main () =
 
   configure ~resources ();
   let socket = listen !Storage_interface.default_path in
-  daemonize ();
+  if !Xcp_service.daemon then daemonize ();
 
   accept_forever socket
     (fun s ->
