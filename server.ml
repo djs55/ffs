@@ -48,8 +48,16 @@ open D
 
 module C = Libvirt.Connect
 module P = Libvirt.Pool
+module V = Libvirt.Volume
 
 let conn = ref None
+
+let get_connection ?name () = match !conn with
+  | None ->
+    let c = C.connect ?name () in
+    conn := Some c;
+    c
+  | Some c -> c
 
 type sr = {
   pool: Libvirt.rw P.t;
@@ -181,21 +189,14 @@ module Implementation = struct
 
     let vdi_path_of sr vdi = "XXX"
 
-    let md_path_of sr vdi =
-        vdi_path_of sr vdi ^ json_suffix
-
-    let vdi_info_of_path path =
-        let md_path = path ^ json_suffix in
-        if Sys.file_exists md_path then begin
-          let txt = string_of_file md_path in
-          Some (vdi_info_of_rpc (Jsonrpc.of_string txt))
-        end else begin
-          let open Unix.LargeFile in
-          let stats = stat path in
-          if stats.st_kind = Unix.S_REG && not (endswith json_suffix path) then Some {
-            vdi = Filename.basename path;
+    let vdi_info_of_name pool name =
+        let v = V.lookup_by_name pool name in
+        let info = V.get_info v in
+        let key = V.get_key v in
+        Some {
+            vdi = key;
             content_id = "";
-            name_label = Filename.basename path;
+            name_label = name;
             name_description = "";
             ty = "user";
             metadata_of_pool = "";
@@ -203,12 +204,11 @@ module Implementation = struct
             snapshot_time = iso8601_of_float 0.;
             snapshot_of = "";
             read_only = false;
-            virtual_size = stats.st_size;
-            physical_utilisation = stats.st_size;
+            virtual_size = info.V.capacity;
+            physical_utilisation = info.V.allocation;
             sm_config = [];
             persistent = true;
-          } else None
-        end
+        }
 
     let choose_filename sr vdi_info =
       let existing = Sys.readdir "XXX" |> Array.to_list in
@@ -225,22 +225,11 @@ module Implementation = struct
 
     let create ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
-      let vdi_info = { vdi_info with
-        vdi = choose_filename sr vdi_info;
-        snapshot_time = iso8601_of_float 0.
-      } in
-      let vdi_path = vdi_path_of sr vdi_info.vdi in
-      let md_path = md_path_of sr vdi_info.vdi in
-
-      ignore(run(Printf.sprintf "dd if=/dev/zero of=%s seek=%Ld count=1 bs=1" vdi_path vdi_info.virtual_size));
-      file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
-      vdi_info
+      failwith "unimplemented"
 
     let destroy ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
-      if not(Sys.file_exists (vdi_path_of sr vdi)) && not(Sys.file_exists (md_path_of sr vdi))
-      then raise (Vdi_does_not_exist vdi);
-      ignore(run(Printf.sprintf "rm -f %s %s" (vdi_path_of sr vdi) (md_path_of sr vdi)))
+      failwith "unimplemented"
 
     let stat ctx ~dbg ~sr ~vdi = assert false
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
@@ -262,16 +251,14 @@ module Implementation = struct
     let list = list
     let scan ctx ~dbg ~sr =
        let sr = Attached_srs.get sr in
-       if not(Sys.file_exists "XXX")
-       then []
-       else
-          Sys.readdir "XXX" 
-            |> Array.to_list
-            |> List.map (Filename.concat "XXX")
-            |> List.map VDI.vdi_info_of_path
-            |> List.fold_left (fun acc x -> match x with
-               | None -> acc
-               | Some x -> x :: acc) []
+       let pool = Libvirt.Pool.const sr.pool in
+       let count = Libvirt.Pool.num_of_volumes pool in
+       Libvirt.Pool.list_volumes pool count
+       |> Array.to_list
+       |> List.map (VDI.vdi_info_of_name pool)
+       |> List.fold_left (fun acc x -> match x with
+             | None -> acc
+             | Some x -> x :: acc) []
 
     let destroy = destroy
     let reset = reset
@@ -294,12 +281,6 @@ module Implementation = struct
         raise (Missing_configuration_parameter key)
       end else List.assoc key device_config
 
-    let get_connection ?name () = match !conn with
-      | None ->
-        let c = C.connect ?name () in
-        conn := Some c;
-        c
-      | Some c -> c
 
     let attach ctx ~dbg ~sr ~device_config =
        let name = require device_config _name in
