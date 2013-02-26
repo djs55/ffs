@@ -191,7 +191,7 @@ module Implementation = struct
 
     let vdi_info_of_name pool name =
         let v = V.lookup_by_name pool name in
-        let info = V.get_info v in
+        (* let info = V.get_info v in *)
         let key = V.get_key v in
         Some {
             vdi = key;
@@ -204,8 +204,8 @@ module Implementation = struct
             snapshot_time = iso8601_of_float 0.;
             snapshot_of = "";
             read_only = false;
-            virtual_size = info.V.capacity;
-            physical_utilisation = info.V.allocation;
+            virtual_size = 0L; (*info.V.capacity;*)
+            physical_utilisation = 0L; (*info.V.allocation;*)
             sm_config = [];
             persistent = true;
         }
