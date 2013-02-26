@@ -14,9 +14,9 @@
 
 open Xcp_service
 
-let driver = "ffs"
-let name = "ffs"
-let description = "Flat File Storage Repository for XCP"
+let driver = "libvirt"
+let name = "sm-libvirt"
+let description = "XCP -> libvirt storage connector"
 let vendor = "Citrix"
 let copyright = "Citrix Inc"
 let minor_version = 1
@@ -32,8 +32,10 @@ let features = [
   "VDI_DEACTIVATE", 0L;
 ]
 let _path = "path"
+let _name = "name"
 let configuration = [
-   _path, "path in the filesystem to store images and metadata";
+   _path, "path in the filesystem to store disk images";
+   _name, "URI of the hypervisor to use";
 ]
 
 let json_suffix = ".json"
@@ -152,30 +154,12 @@ module Attached_srs = struct
     if not(Hashtbl.mem table id)
     then raise (Sr_not_attached id)
     else Hashtbl.remove table id
+  let num_attached () = Hashtbl.fold (fun _ _ acc -> acc + 1) table 0
 end
 
-module Losetup = struct
-  let find file =
-    (* /dev/loop0: [0801]:196616 (/tmp/foo/bar) *)
-    match Re_str.split_delim (Re_str.regexp_string ":") (run (Printf.sprintf "losetup -j %s" file)) with
-    | device :: _ -> Some device
-    | _ -> None
+module C = Libvirt.Connect
 
-  let add file read_write =
-      match find file with
-      | None ->
-        ignore (run (Printf.sprintf "losetup %s -f %s" (if read_write then "" else "-r") file));
-        begin match find file with
-        | None -> failwith (Printf.sprintf "Failed to add a loop device for %s" file)
-        | Some x -> x
-        end
-      | Some x -> x
-
-  let remove file =
-      match find file with
-      | None -> ()
-      | Some device -> ignore (run (Printf.sprintf "losetup -d %s" device))
-end
+let conn = ref None
 
 module Implementation = struct
   type context = unit
@@ -280,14 +264,14 @@ module Implementation = struct
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
       let sr = Attached_srs.get sr in
       let path = vdi_path_of sr vdi in
-      let device = Losetup.add path read_write in {
-        params = device;
+      {
+        params = "XXX";
         xenstore_data = []
       }
     let detach ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
       let path = vdi_path_of sr vdi in
-      Losetup.remove path
+      ()
     let activate ctx ~dbg ~dp ~sr ~vdi = ()
     let deactivate ctx ~dbg ~dp ~sr ~vdi = ()
   end
@@ -310,14 +294,27 @@ module Implementation = struct
     let destroy = destroy
     let reset = reset
     let detach ctx ~dbg ~sr =
-       Attached_srs.remove sr
+       Attached_srs.remove sr;
+       if Attached_srs.num_attached () = 0
+       then match !conn with
+       | Some c ->
+            C.close c;
+            conn := None
+       | None -> ()
     let attach ctx ~dbg ~sr ~device_config =
        if not(List.mem_assoc _path device_config) then begin
            error "Required device_config:path not present";
            raise (Missing_configuration_parameter _path);
        end;
        let path = List.assoc _path device_config in
-       Attached_srs.put sr { path }
+       let name =
+           if List.mem_assoc _name device_config
+           then Some (List.assoc _name device_config)
+           else None in
+       Attached_srs.put sr { path };
+       match !conn with
+       | None -> conn := Some (C.connect_readonly ?name ())
+       | Some _ -> ()
     let create ctx ~dbg ~sr ~device_config ~physical_size =
        (* attach will validate the device_config parameters *)
        attach ctx ~dbg ~sr ~device_config;

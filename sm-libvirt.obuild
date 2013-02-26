@@ -1,0 +1,10 @@
+name: sm-ffs
+version: 0.0.0
+synopsis: XCP storage to libvirt connector
+obuild-ver: 1
+
+executable sm-libvirt
+  main: main.ml
+  src-dir: .
+  build-deps: libvirt, xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, syslog
+  pp: camlp4o
