@@ -33,9 +33,11 @@ let features = [
 ]
 let _path = "path"
 let _name = "name"
+let _uri  = "uri"
 let configuration = [
    _path, "path in the filesystem to store disk images";
-   _name, "URI of the hypervisor to use";
+   _name, "name of the libvirt storage pool";
+   _uri, "URI of the hypervisor to use";
 ]
 
 let json_suffix = ".json"
@@ -44,10 +46,14 @@ let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
 module D = Debug.Make(struct let name = "ffs" end)
 open D
 
+module C = Libvirt.Connect
+module P = Libvirt.Pool
+
+let conn = ref None
+
 type sr = {
-  path: string;
-} with rpc
-type srs = (string * sr) list with rpc
+  pool: Libvirt.rw P.t;
+}
 
 let finally f g =
   try
@@ -123,24 +129,6 @@ open Storage_interface
 
 module Attached_srs = struct
   let table = Hashtbl.create 16
-  let save () =
-    let srs = Hashtbl.fold (fun id sr acc -> (id, sr) :: acc) table [] in
-    let txt = Jsonrpc.to_string (rpc_of_srs srs) in
-    let dir = Filename.dirname state_path in
-    if not(Sys.file_exists dir)
-    then ignore (run (Printf.sprintf "mkdir -p %s" dir));
-    file_of_string state_path txt
-  let load () =
-    if Sys.file_exists state_path then begin
-      info "Loading state from: %s" state_path;
-      let all = string_of_file state_path in
-      let srs = srs_of_rpc (Jsonrpc.of_string all) in
-      Hashtbl.clear table;
-      List.iter (fun (id, sr) -> Hashtbl.replace table id sr) srs
-    end else info "No saved state; starting with an empty configuration"
-
-  (* On service start, load any existing database *)
-  let _ = load ()
   let get id =
     if not(Hashtbl.mem table id)
     then raise (Sr_not_attached id)
@@ -148,18 +136,13 @@ module Attached_srs = struct
   let put id sr =
     if Hashtbl.mem table id
     then raise (Sr_attached id)
-    else Hashtbl.replace table id sr;
-    save ()
+    else Hashtbl.replace table id sr
   let remove id =
     if not(Hashtbl.mem table id)
     then raise (Sr_not_attached id)
     else Hashtbl.remove table id
   let num_attached () = Hashtbl.fold (fun _ _ acc -> acc + 1) table 0
 end
-
-module C = Libvirt.Connect
-
-let conn = ref None
 
 module Implementation = struct
   type context = unit
@@ -196,8 +179,7 @@ module Implementation = struct
     let set_content_id = set_content_id
     let get_by_name = get_by_name
 
-    let vdi_path_of sr vdi =
-        Filename.concat sr.path vdi
+    let vdi_path_of sr vdi = "XXX"
 
     let md_path_of sr vdi =
         vdi_path_of sr vdi ^ json_suffix
@@ -229,7 +211,7 @@ module Implementation = struct
         end
 
     let choose_filename sr vdi_info =
-      let existing = Sys.readdir sr.path |> Array.to_list in
+      let existing = Sys.readdir "XXX" |> Array.to_list in
       if not(List.mem vdi_info.name_label existing)
       then vdi_info.name_label
       else
@@ -280,12 +262,12 @@ module Implementation = struct
     let list = list
     let scan ctx ~dbg ~sr =
        let sr = Attached_srs.get sr in
-       if not(Sys.file_exists sr.path)
+       if not(Sys.file_exists "XXX")
        then []
        else
-          Sys.readdir sr.path
+          Sys.readdir "XXX" 
             |> Array.to_list
-            |> List.map (Filename.concat sr.path)
+            |> List.map (Filename.concat "XXX")
             |> List.map VDI.vdi_info_of_path
             |> List.fold_left (fun acc x -> match x with
                | None -> acc
@@ -301,24 +283,46 @@ module Implementation = struct
             C.close c;
             conn := None
        | None -> ()
+
+    let optional device_config key =
+      if List.mem_assoc key device_config
+      then Some (List.assoc key device_config)
+      else None
+    let require device_config key =
+      if not(List.mem_assoc key device_config) then begin
+        error "Required device_config:%s not present" key;
+        raise (Missing_configuration_parameter key)
+      end else List.assoc key device_config
+
+    let get_connection ?name () = match !conn with
+      | None ->
+        let c = C.connect ?name () in
+        conn := Some c;
+        c
+      | Some c -> c
+
     let attach ctx ~dbg ~sr ~device_config =
-       if not(List.mem_assoc _path device_config) then begin
-           error "Required device_config:path not present";
-           raise (Missing_configuration_parameter _path);
-       end;
-       let path = List.assoc _path device_config in
-       let name =
-           if List.mem_assoc _name device_config
-           then Some (List.assoc _name device_config)
-           else None in
-       Attached_srs.put sr { path };
-       match !conn with
-       | None -> conn := Some (C.connect_readonly ?name ())
-       | Some _ -> ()
+       let name = require device_config _name in
+       let uri = optional device_config _uri in
+       let c = get_connection ?name:uri () in
+       let pool = P.lookup_by_name c name in
+       Attached_srs.put sr { pool }
+
     let create ctx ~dbg ~sr ~device_config ~physical_size =
-       (* attach will validate the device_config parameters *)
-       attach ctx ~dbg ~sr ~device_config;
-       detach ctx ~dbg ~sr
+       let name = require device_config _name in
+       let uri = optional device_config _uri in
+       let path = require device_config _path in
+       let xml = Printf.sprintf "
+         <pool type=\"dir\">
+           <name>%s</name>
+           <target>
+             <path>%s</path>
+           </target>
+         </pool>
+       " name path in
+       let c = get_connection ?name:uri () in
+       let _ = Libvirt.Pool.create_xml c xml in
+       ()
   end
   module UPDATES = struct include Storage_skeleton.UPDATES end
   module TASK = struct include Storage_skeleton.TASK end
