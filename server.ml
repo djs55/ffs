@@ -231,7 +231,13 @@ module Implementation = struct
           <capacity unit=\"B\">%Ld</capacity>
         </volume>
       " vdi_info.name_label vdi_info.virtual_size in
-      Libvirt.Volume.create_xml sr.pool xml;
+      (* BUG: The phantom type here is [ `W ] P.t but I think it should
+         be [> `W P.t] like the other "writable" operations. Compare:
+           http://libvirt.org/ocaml/html/Libvirt.Volume.html
+         with
+           http://libvirt.org/ocaml/html/Libvirt.Domain.html
+      *)
+      Libvirt.Volume.create_xml (Obj.magic sr.pool) xml;
       match vdi_info_of_name (P.const sr.pool) vdi_info.name_label with
       | Some x -> x
       | None ->
