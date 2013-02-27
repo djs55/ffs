@@ -225,7 +225,17 @@ module Implementation = struct
 
     let create ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
-      failwith "unimplemented"
+      let xml = Printf.sprintf "
+        <volume>
+          <name>%s.img</name>
+          <capacity unit=\"B\">%Ld</capacity>
+        </volume>
+      " vdi_info.name_label vdi_info.virtual_size in
+      Libvirt.Volume.create_xml sr.pool xml;
+      match vdi_info_of_name (P.const sr.pool) vdi_info.name_label with
+      | Some x -> x
+      | None ->
+        failwith "Failed to find volume in storage pool: create silently failed?"
 
     let destroy ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
