@@ -190,25 +190,32 @@ module Implementation = struct
     let vdi_path_of sr vdi = "XXX"
 
     let vdi_info_of_name pool name =
-        let v = V.lookup_by_name pool name in
-        (* let info = V.get_info v in *)
-        let key = V.get_key v in
-        Some {
-            vdi = key;
-            content_id = "";
-            name_label = name;
-            name_description = "";
-            ty = "user";
-            metadata_of_pool = "";
-            is_a_snapshot = false;
-            snapshot_time = iso8601_of_float 0.;
-            snapshot_of = "";
-            read_only = false;
-            virtual_size = 0L; (*info.V.capacity;*)
-            physical_utilisation = 0L; (*info.V.allocation;*)
-            sm_config = [];
-            persistent = true;
-        }
+        try
+          let v = V.lookup_by_name pool name in
+          (* let info = V.get_info v in *)
+          let key = V.get_key v in
+          Some {
+              vdi = key;
+              content_id = "";
+              name_label = name;
+              name_description = "";
+              ty = "user";
+              metadata_of_pool = "";
+              is_a_snapshot = false;
+              snapshot_time = iso8601_of_float 0.;
+              snapshot_of = "";
+              read_only = false;
+              virtual_size = 0L; (*info.V.capacity;*)
+              physical_utilisation = 0L; (*info.V.allocation;*)
+              sm_config = [];
+              persistent = true;
+          }
+        with Libvirt.Virterror t ->
+          error "Error while looking up volume: %s: %s" name (Libvirt.Virterror.to_string t);
+          None
+        | e ->
+          error "Error while looking up volume: %s: %s" name (Printexc.to_string e);
+          None
 
     let choose_filename sr vdi_info =
       let existing = Sys.readdir "XXX" |> Array.to_list in
@@ -225,12 +232,13 @@ module Implementation = struct
 
     let create ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
+      let name = vdi_info.name_label ^ ".img" in
       let xml = Printf.sprintf "
         <volume>
-          <name>%s.img</name>
+          <name>%s</name>
           <capacity unit=\"B\">%Ld</capacity>
         </volume>
-      " vdi_info.name_label vdi_info.virtual_size in
+      " name vdi_info.virtual_size in
       (* BUG: The phantom type here is [ `W ] P.t but I think it should
          be [> `W P.t] like the other "writable" operations. Compare:
            http://libvirt.org/ocaml/html/Libvirt.Volume.html
@@ -238,7 +246,7 @@ module Implementation = struct
            http://libvirt.org/ocaml/html/Libvirt.Domain.html
       *)
       Libvirt.Volume.create_xml (Obj.magic sr.pool) xml;
-      match vdi_info_of_name (P.const sr.pool) vdi_info.name_label with
+      match vdi_info_of_name (P.const sr.pool) name with
       | Some x -> x
       | None ->
         failwith "Failed to find volume in storage pool: create silently failed?"
