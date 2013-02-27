@@ -217,12 +217,15 @@ module Implementation = struct
           error "Error while looking up volume: %s: %s" name (Printexc.to_string e);
           None
 
-    let choose_filename sr vdi_info =
-      let existing = Sys.readdir "XXX" |> Array.to_list in
-      if not(List.mem vdi_info.name_label existing)
-      then vdi_info.name_label
+    let choose_filename sr name_label =
+      let pool = Libvirt.Pool.const sr.pool in
+      let count = Libvirt.Pool.num_of_volumes pool in
+      let existing = Array.to_list (Libvirt.Pool.list_volumes pool count) in
+
+      if not(List.mem name_label existing)
+      then name_label
       else
-        let stem = vdi_info.name_label ^ "." in
+        let stem = name_label ^ "." in
         let with_common_prefix = List.filter (startswith stem) existing in
         let suffixes = List.map (remove_prefix stem) with_common_prefix in
         let highest_number = List.fold_left (fun acc suffix ->
@@ -230,9 +233,20 @@ module Implementation = struct
           max acc this) 0 suffixes in
         stem ^ (string_of_int (highest_number + 1))
 
+
     let create ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
       let name = vdi_info.name_label ^ ".img" in
+      (* If this volume already exists, make a different name which is
+         unique. NB this is not concurrency-safe *)
+      let name =
+        if vdi_info_of_name (P.const sr.pool) name = None
+        then name
+        else
+          let name' = choose_filename sr name in
+          info "Rewriting name from %s to %s to guarantee uniqueness" name name';
+          name' in 
+
       let xml = Printf.sprintf "
         <volume>
           <name>%s</name>
