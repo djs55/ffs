@@ -187,7 +187,43 @@ module Implementation = struct
     let set_content_id = set_content_id
     let get_by_name = get_by_name
 
-    let vdi_path_of sr vdi = "XXX"
+    let example_volume_xml = "
+       <volume>
+         <name>myvol</name>
+         <key>rbd/myvol</key>
+         <source>
+         </source>
+         <capacity unit='bytes'>53687091200</capacity>
+         <allocation unit='bytes'>53687091200</allocation>
+         <target>
+           <path>rbd:rbd/myvol</path>
+           <format type='unknown'/>
+           <permissions>
+             <mode>00</mode>
+             <owner>0</owner>
+             <group>0</group>
+           </permissions>
+         </target>
+       </volume>
+    "
+    
+    let read_xml_path path' xml =
+      let input = Xmlm.make_input (`String (0, xml)) in
+      let rec search path = match Xmlm.input input with
+      | `Dtd _ -> search path
+      | `El_start ((_, x), _) -> search (x :: path)
+      | `El_end -> search (List.tl path)
+      | `Data x when path = path' -> x
+      | `Data _ -> search path in
+      search []
+
+    let volume_target_path = [ "path"; "target"; "volume" ]
+
+    let vdi_path_of key =
+      let c = get_connection () in
+      let v = V.lookup_by_key c key in
+      let xml = V.get_xml_desc (V.const v) in
+      read_xml_path volume_target_path xml 
 
     let vdi_info_of_name pool name =
         try
@@ -266,7 +302,6 @@ module Implementation = struct
         failwith "Failed to find volume in storage pool: create silently failed?"
 
     let destroy ctx ~dbg ~sr ~vdi =
-      let sr = Attached_srs.get sr in
       let c = get_connection () in
       let v = V.lookup_by_key c vdi in
       (* BUG: libvir: Storage error : invalid argument: virStorageBackendFileSystemVolDelete: unsupported flags (0xfacae8) *)
@@ -274,15 +309,13 @@ module Implementation = struct
 
     let stat ctx ~dbg ~sr ~vdi = assert false
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
-      let sr = Attached_srs.get sr in
-      let path = vdi_path_of sr vdi in
+      let path = vdi_path_of vdi in
       {
-        params = "XXX";
+        params = path;
         xenstore_data = []
       }
     let detach ctx ~dbg ~dp ~sr ~vdi =
-      let sr = Attached_srs.get sr in
-      let path = vdi_path_of sr vdi in
+      let _ = vdi_path_of vdi in
       ()
     let activate ctx ~dbg ~dp ~sr ~vdi = ()
     let deactivate ctx ~dbg ~dp ~sr ~vdi = ()
