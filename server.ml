@@ -267,7 +267,10 @@ module Implementation = struct
 
     let destroy ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
-      failwith "unimplemented"
+      let c = get_connection () in
+      let v = V.lookup_by_key c vdi in
+      (* BUG: libvir: Storage error : invalid argument: virStorageBackendFileSystemVolDelete: unsupported flags (0xfacae8) *)
+      V.delete (Obj.magic v)
 
     let stat ctx ~dbg ~sr ~vdi = assert false
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
