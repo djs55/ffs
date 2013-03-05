@@ -152,6 +152,14 @@ module Attached_srs = struct
   let num_attached () = Hashtbl.fold (fun _ _ acc -> acc + 1) table 0
 end
 
+let report_libvirt_error f x =
+  try
+    f x
+  with Libvirt.Virterror t ->
+    error "from libvirt: %s" (Libvirt.Virterror.to_string t);
+    raise (Backend_error ("libvirt", [Libvirt.Virterror.to_string t]))
+
+
 module Implementation = struct
   type context = unit
 
@@ -289,13 +297,7 @@ module Implementation = struct
           <capacity unit=\"B\">%Ld</capacity>
         </volume>
       " name vdi_info.virtual_size in
-      (* BUG: The phantom type here is [ `W ] P.t but I think it should
-         be [> `W P.t] like the other "writable" operations. Compare:
-           http://libvirt.org/ocaml/html/Libvirt.Volume.html
-         with
-           http://libvirt.org/ocaml/html/Libvirt.Domain.html
-      *)
-      Libvirt.Volume.create_xml (Obj.magic sr.pool) xml;
+      report_libvirt_error (Libvirt.Volume.create_xml sr.pool) xml;
       match vdi_info_of_name (P.const sr.pool) name with
       | Some x -> x
       | None ->
@@ -303,9 +305,8 @@ module Implementation = struct
 
     let destroy ctx ~dbg ~sr ~vdi =
       let c = get_connection () in
-      let v = V.lookup_by_key c vdi in
-      (* BUG: libvir: Storage error : invalid argument: virStorageBackendFileSystemVolDelete: unsupported flags (0xfacae8) *)
-      V.delete (Obj.magic v)
+      let v = V.lookup_by_path c vdi in
+      report_libvirt_error (V.delete v) V.Normal
 
     let stat ctx ~dbg ~sr ~vdi = assert false
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
@@ -327,7 +328,7 @@ module Implementation = struct
        let sr = Attached_srs.get sr in
        let pool = Libvirt.Pool.const sr.pool in
        let count = Libvirt.Pool.num_of_volumes pool in
-       Libvirt.Pool.list_volumes pool count
+       report_libvirt_error (Libvirt.Pool.list_volumes pool) count
        |> Array.to_list
        |> List.map (VDI.vdi_info_of_name pool)
        |> List.fold_left (fun acc x -> match x with
@@ -376,7 +377,7 @@ module Implementation = struct
          </pool>
        " name path in
        let c = get_connection ?name:uri () in
-       let _ = Libvirt.Pool.create_xml c xml in
+       let _ = report_libvirt_error (Libvirt.Pool.create_xml c) xml in
        ()
   end
   module UPDATES = struct include Storage_skeleton.UPDATES end
