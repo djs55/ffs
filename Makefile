@@ -1,8 +1,12 @@
 BINDIR?=/tmp/
 
-dist/build/ffs/ffs:
-	obuild configure
+.PHONY: build
+build: configure.done
 	obuild build
+
+configure.done: ffs.obuild
+	obuild configure
+	touch configure.done
 
 install:
 	install -m 0755 dist/build/ffs/ffs ${BINDIR}
