@@ -29,12 +29,18 @@ let resources = [
   }
 ]
 
+let socket_path = ref !Storage_interface.default_path
+
+let options = [
+  "socket-path", Arg.Set_string socket_path, (fun () -> !socket_path), "Path of listening socket";
+]
+
 let main () =
   debug "%s version %d.%d starting" name major_version minor_version;
 
-  configure ~resources ();
-  let socket = listen !Storage_interface.default_path in
-  daemonize ();
+  configure ~options ~resources ();
+  let socket = listen !socket_path in
+  if !Xcp_service.daemon then daemonize ();
 
   accept_forever socket
     (fun s ->
