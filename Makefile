@@ -1,6 +1,7 @@
 BINDIR?=/tmp/
 
-.PHONY: build
+.PHONY: build install uninstall clean
+
 build: configure.done
 	obuild build
 
@@ -14,6 +15,5 @@ install:
 uninstall:
 	rm -f ${BINDIR}/ffs
 
-.PHONY: clean
 clean:
-	rm -rf dist
+	rm -rf dist configure.done
