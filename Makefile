@@ -16,4 +16,4 @@ uninstall:
 
 .PHONY: clean
 clean:
-	rm -rf dist
+	rm -rf dist configure.done
