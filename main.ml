@@ -40,7 +40,7 @@ let options = [
 let main () =
   debug "%s version %d.%d starting" name major_version minor_version;
   (* The default queue name: *)
-  Storage_interface.queue_name := "org.xen.xcp.storage.libvirt";
+  Storage_interface.queue_name := "org.xen.xcp.storage.ffs";
 
   configure ~options ~resources ();
   let server = Xcp_service.make ~path:!socket_path
