@@ -1,0 +1,7 @@
+To install, execute:
+
+make
+
+followed by 
+
+make install
