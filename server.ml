@@ -278,7 +278,16 @@ module Implementation = struct
       let vdi_path = vdi_path_of sr vdi_info.vdi in
       let md_path = md_path_of sr vdi_info.vdi in
 
-      ignore(run(Printf.sprintf "dd if=/dev/zero of=%s seek=%Ld count=1 bs=1" vdi_path vdi_info.virtual_size));
+      let f = Unix.openfile vdi_path [ Unix.O_CREAT; Unix.O_WRONLY ] 0 in
+      finally
+        (fun () ->
+          let _ : int64 = Unix.LargeFile.lseek f (Int64.sub vdi_info.virtual_size 1L) Unix.SEEK_SET in
+          let n = Unix.write f "\000" 0 1 in
+          if n <> 1 then begin
+            error "Failed to create %s" vdi_path;
+            failwith (Printf.sprintf "Failed to create %s" vdi_path)
+          end
+        ) (fun () -> Unix.close f);
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
