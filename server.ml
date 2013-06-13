@@ -79,17 +79,6 @@ let file_of_string filename string =
       output oc string 0 (String.length string)
     ) (fun () -> close_out oc)
 
-let run cmd =
-  info "shell %s" cmd;
-  let f = Filename.temp_file name name in
-  let cmdline = Printf.sprintf "%s > %s 2>&1" cmd f in
-  let code = Sys.command cmdline in
-  let output = string_of_file f in
-  let _ = Sys.command (Printf.sprintf "rm %s" f) in
-  if code = 0
-  then output
-  else failwith (Printf.sprintf "%s: %d: %s" cmdline code output)
-
 let startswith prefix x =
   let prefix' = String.length prefix in
   let x' = String.length x in
@@ -126,6 +115,8 @@ let mkdir_rec dir perm =
     then p_mkdir p_name;
     mkdir_safe dir perm in
   p_mkdir dir
+
+let rm_f x = try Unix.unlink x with _ -> ()
 
 let ( |> ) a b = b a
 
@@ -164,29 +155,6 @@ module Attached_srs = struct
     if not(Hashtbl.mem table id)
     then raise (Sr_not_attached id)
     else Hashtbl.remove table id
-end
-
-module Losetup = struct
-  let find file =
-    (* /dev/loop0: [0801]:196616 (/tmp/foo/bar) *)
-    match Re_str.split_delim (Re_str.regexp_string ":") (run (Printf.sprintf "losetup -j %s" file)) with
-    | device :: _ -> Some device
-    | _ -> None
-
-  let add file read_write =
-      match find file with
-      | None ->
-        ignore (run (Printf.sprintf "losetup %s -f %s" (if read_write then "" else "-r") file));
-        begin match find file with
-        | None -> failwith (Printf.sprintf "Failed to add a loop device for %s" file)
-        | Some x -> x
-        end
-      | Some x -> x
-
-  let remove file =
-      match find file with
-      | None -> ()
-      | Some device -> ignore (run (Printf.sprintf "losetup -d %s" device))
 end
 
 module Implementation = struct
@@ -295,7 +263,8 @@ module Implementation = struct
       let sr = Attached_srs.get sr in
       if not(Sys.file_exists (vdi_path_of sr vdi)) && not(Sys.file_exists (md_path_of sr vdi))
       then raise (Vdi_does_not_exist vdi);
-      ignore(run(Printf.sprintf "rm -f %s %s" (vdi_path_of sr vdi) (md_path_of sr vdi)))
+      rm_f (vdi_path_of sr vdi);
+      rm_f (md_path_of sr vdi)
 
     let stat ctx ~dbg ~sr ~vdi = assert false
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =

@@ -12,12 +12,10 @@
  * GNU Lesser General Public License for more details.
  *)
 
-let losetup = ref "/sbin/losetup"
-
 open Unix
 
 let essentials = [
-  X_OK, "losetup", losetup, "path to the losetup binary";
+  X_OK, "losetup", Losetup.losetup, "path to the losetup binary";
 ]
 
 let nonessentials = [

@@ -18,13 +18,11 @@ open D
 
 open Server
 
-let losetup = ref "/sbin/losetup"
-
 let resources = [
   { Xcp_service.name = "losetup";
     description = "used to set up loopback block devices";
     essential = true;
-    path = losetup;
+    path = Losetup.losetup;
     perms = [ Unix.X_OK ];
   }
 ]
