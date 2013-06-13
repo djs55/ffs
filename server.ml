@@ -115,6 +115,18 @@ let iso8601_of_float x =
     time.Unix.tm_min
     time.Unix.tm_sec
 
+
+(** create a directory, and create parent if doesn't exist *)
+let mkdir_rec dir perm =
+  let mkdir_safe dir perm =
+    try Unix.mkdir dir perm with Unix.Unix_error (Unix.EEXIST, _, _) -> () in
+  let rec p_mkdir dir =
+    let p_name = Filename.dirname dir in
+    if p_name <> "/" && p_name <> "." 
+    then p_mkdir p_name;
+    mkdir_safe dir perm in
+  p_mkdir dir
+
 let ( |> ) a b = b a
 
 open Storage_interface
@@ -126,7 +138,7 @@ module Attached_srs = struct
     let txt = Jsonrpc.to_string (rpc_of_srs srs) in
     let dir = Filename.dirname state_path in
     if not(Sys.file_exists dir)
-    then ignore (run (Printf.sprintf "mkdir -p %s" dir));
+    then mkdir_rec dir 0o0755;
     file_of_string state_path txt
   let load () =
     if Sys.file_exists state_path then begin
