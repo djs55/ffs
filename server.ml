@@ -226,10 +226,26 @@ module Implementation = struct
 
     let choose_filename sr vdi_info =
       let existing = Sys.readdir sr.path |> Array.to_list in
-      if not(List.mem vdi_info.name_label existing)
-      then vdi_info.name_label
+      let name_label =
+        (* empty filenames are not valid *)
+        if vdi_info.name_label = ""
+        then "unknown"
+        else
+          (* only some characters are valid in filenames *)
+          let name_label = String.copy vdi_info.name_label in
+          for i = 0 to String.length name_label - 1 do
+            name_label.[i] <- match name_label.[i] with
+              | 'a' .. 'z'
+              | 'A' .. 'Z'
+              | '0' .. '9'
+              | '-' | '_' | '+' -> name_label.[i]
+              | _ -> '_'
+          done;
+          name_label in
+      if not(List.mem name_label existing)
+      then name_label
       else
-        let stem = vdi_info.name_label ^ "." in
+        let stem = name_label ^ "." in
         let with_common_prefix = List.filter (startswith stem) existing in
         let suffixes = List.map (remove_prefix stem) with_common_prefix in
         let highest_number = List.fold_left (fun acc suffix ->
