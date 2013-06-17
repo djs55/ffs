@@ -1,5 +1,5 @@
 name: ffs
-version: 0.9.1
+version: 0.9.2
 synopsis: XCP storage backend using flat files
 obuild-ver: 1
 
