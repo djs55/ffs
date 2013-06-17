@@ -28,7 +28,7 @@ let run cmd args =
     let tmp = String.make 4096 '\000' in
     let readable, writable = Unix.pipe () in
     to_close := readable :: writable :: !to_close;
-    let pid = Unix.create_process cmd (Array.of_list args) null writable null in
+    let pid = Unix.create_process cmd (Array.of_list (cmd :: args)) null writable null in
     close writable;
     let finished = ref false in
     while not !finished do
