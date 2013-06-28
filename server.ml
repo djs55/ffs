@@ -39,8 +39,10 @@ let configuration = [
 
 let json_suffix = ".json"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
+let device_suffix = ".device"
 
 type sr = {
+  sr: string;
   path: string;
 } with rpc
 type srs = (string * sr) list with rpc
@@ -193,6 +195,8 @@ module Implementation = struct
     let vdi_path_of sr vdi =
         Filename.concat sr.path vdi
 
+    let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s%s" name sr.sr vdi device_suffix
+
     let md_path_of sr vdi =
         vdi_path_of sr vdi ^ json_suffix
 
@@ -260,7 +264,7 @@ module Implementation = struct
       let vdi_path = vdi_path_of sr vdi_info.vdi in
       let md_path = md_path_of sr vdi_info.vdi in
 
-      Sparse.create vdi_path vdi_info.virtual_size;
+      Vhdformat.create vdi_path vdi_info.virtual_size;
       
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
@@ -270,27 +274,41 @@ module Implementation = struct
       if not(Sys.file_exists (vdi_path_of sr vdi)) && not(Sys.file_exists (md_path_of sr vdi))
       then raise (Vdi_does_not_exist vdi);
 
-      Sparse.destroy (vdi_path_of sr vdi);
+      Vhdformat.destroy (vdi_path_of sr vdi);
 
       rm_f (md_path_of sr vdi)
 
     let stat ctx ~dbg ~sr ~vdi = assert false
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
       let sr = Attached_srs.get sr in
-      let path = vdi_path_of sr vdi in
-      let device = Losetup.add path read_write in {
+      let device = Vhdformat.attach () in
+      let symlink = device_path_of sr vdi in
+      mkdir_rec (Filename.dirname symlink) 0o700;
+      Unix.symlink device symlink;
+      {
         params = device;
         xenstore_data = []
       }
     let detach ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
-      let path = vdi_path_of sr vdi in
+      let symlink = device_path_of sr vdi in
+      let device = Unix.readlink symlink in
       (* We can get transient failures from background tasks on the system
          inspecting the block device. We must not allow detach to fail, so
          we should keep retrying until the transient failures stop happening. *)
-      retry_every 0.1 (fun () -> Losetup.remove path)
-    let activate ctx ~dbg ~dp ~sr ~vdi = ()
-    let deactivate ctx ~dbg ~dp ~sr ~vdi = ()
+      retry_every 0.1 (fun () -> Vhdformat.detach device);
+      rm_f symlink
+    let activate ctx ~dbg ~dp ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let symlink = device_path_of sr vdi in
+      let device = Unix.readlink symlink in
+      let path = vdi_path_of sr vdi in
+      Vhdformat.activate device path Tapctl.Vhd
+    let deactivate ctx ~dbg ~dp ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let symlink = device_path_of sr vdi in
+      let device = Unix.readlink symlink in
+      Vhdformat.deactivate device
   end
   module SR = struct
     open Storage_skeleton.SR
@@ -318,7 +336,7 @@ module Implementation = struct
            raise (Missing_configuration_parameter _path);
        end;
        let path = List.assoc _path device_config in
-       Attached_srs.put sr { path }
+       Attached_srs.put sr { sr; path }
     let create ctx ~dbg ~sr ~device_config ~physical_size =
        (* attach will validate the device_config parameters *)
        attach ctx ~dbg ~sr ~device_config;
