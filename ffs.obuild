@@ -6,5 +6,5 @@ obuild-ver: 1
 executable ffs
   main: main.ml
   src-dir: .
-  build-deps: xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, syslog
+  build-deps: xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, syslog, libvhd
   pp: camlp4o

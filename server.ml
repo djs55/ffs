@@ -13,6 +13,7 @@
  *)
 
 open Xcp_service
+open Common
 
 let driver = "ffs"
 let name = "ffs"
@@ -39,22 +40,10 @@ let configuration = [
 let json_suffix = ".json"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
 
-module D = Debug.Make(struct let name = "ffs" end)
-open D
-
 type sr = {
   path: string;
 } with rpc
 type srs = (string * sr) list with rpc
-
-let finally f g =
-  try
-    let result = f () in
-    g ();
-    result
-  with e ->
-    g ();
-    raise e
 
 let string_of_file filename =
   let ic = open_in filename in
@@ -271,16 +260,8 @@ module Implementation = struct
       let vdi_path = vdi_path_of sr vdi_info.vdi in
       let md_path = md_path_of sr vdi_info.vdi in
 
-      let f = Unix.openfile vdi_path [ Unix.O_CREAT; Unix.O_WRONLY ] 0 in
-      finally
-        (fun () ->
-          let _ : int64 = Unix.LargeFile.lseek f (Int64.sub vdi_info.virtual_size 1L) Unix.SEEK_SET in
-          let n = Unix.write f "\000" 0 1 in
-          if n <> 1 then begin
-            error "Failed to create %s" vdi_path;
-            failwith (Printf.sprintf "Failed to create %s" vdi_path)
-          end
-        ) (fun () -> Unix.close f);
+      Sparse.create vdi_path vdi_info.virtual_size;
+      
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
@@ -288,7 +269,9 @@ module Implementation = struct
       let sr = Attached_srs.get sr in
       if not(Sys.file_exists (vdi_path_of sr vdi)) && not(Sys.file_exists (md_path_of sr vdi))
       then raise (Vdi_does_not_exist vdi);
-      rm_f (vdi_path_of sr vdi);
+
+      Sparse.destroy (vdi_path_of sr vdi);
+
       rm_f (md_path_of sr vdi)
 
     let stat ctx ~dbg ~sr ~vdi = assert false
