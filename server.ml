@@ -120,6 +120,17 @@ let rm_f x = try Unix.unlink x with _ -> ()
 
 let ( |> ) a b = b a
 
+let retry_every n f =
+  let finished = ref false in
+  while (not !finished) do
+    try
+      let () = f () in
+      finished := true;
+    with e ->
+      debug "Caught %s: sleeping %f. before trying again" (Printexc.to_string e) n;
+      Thread.delay n
+  done
+
 open Storage_interface
 
 module Attached_srs = struct
@@ -291,7 +302,10 @@ module Implementation = struct
     let detach ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
       let path = vdi_path_of sr vdi in
-      Losetup.remove path
+      (* We can get transient failures from background tasks on the system
+         inspecting the block device. We must not allow detach to fail, so
+         we should keep retrying until the transient failures stop happening. *)
+      retry_every 0.1 (fun () -> Losetup.remove path)
     let activate ctx ~dbg ~dp ~sr ~vdi = ()
     let deactivate ctx ~dbg ~dp ~sr ~vdi = ()
   end
