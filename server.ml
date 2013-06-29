@@ -20,9 +20,6 @@ let name = "ffs"
 let description = "Flat File Storage Repository for XCP"
 let vendor = "Citrix"
 let copyright = "Citrix Inc"
-let minor_version = 1
-let major_version = 0
-let version = Printf.sprintf "%d.%d" major_version minor_version
 let required_api_version = "2.0"
 let features = [
   "VDI_CREATE", 0L;
@@ -132,7 +129,7 @@ module Implementation = struct
         description;
         vendor;
         copyright;
-        version;
+        version = Version.version;
         required_api_version;
         features;
         configuration;

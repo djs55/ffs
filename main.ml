@@ -35,7 +35,7 @@ let options = [
 ]
 
 let main () =
-  debug "%s version %d.%d starting" Server.name Server.major_version Server.minor_version;
+  debug "%s version %s starting" Server.name Version.version;
   (* The default queue name: *)
   Storage_interface.queue_name := "org.xen.xcp.storage.ffs";
 
