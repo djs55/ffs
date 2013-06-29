@@ -262,6 +262,44 @@ module Implementation = struct
 
       rm_f (md_path_of sr vdi)
 
+    module Vhd_tree_node = struct
+      type t = {
+        children: string list;
+      } with rpc
+
+      let suffix = ".readme"
+
+      let marker = "Machine readable data follows - DO NOT EDIT\n"
+      let marker_regex = Re_str.regexp_string marker
+
+      let filename sr name = Filename.concat sr.path name ^ suffix
+      let read sr name =
+        let txt = string_of_file (filename sr name) in
+        match Re_str.bounded_split_delim marker_regex txt 2 with
+        | [ _; x ] -> Some (t_of_rpc (Jsonrpc.of_string x))
+        | _ -> None
+       
+      let write sr name t =
+        let vhd_filename = vdi_path_of sr name in
+        let preamble = [
+          "Warning";
+          "=======";
+          Printf.sprintf "The file %s is a link in a chain of vhd files; it contains some" vhd_filename;
+          "of the disk blocks needed to reconstruct the virtual disk.";
+          "";
+          Printf.sprintf "DO NOT delete %s unless you are SURE it is nolonger referenced by" vhd_filename;
+          "any other vhd files. The system will automatically delete the file when it is";
+          "nolonger needed.";
+          "";
+          "Explanation of the data below";
+          "-----------------------------";
+          "The machine-readable data below lists the vhd files which depend on this one.";
+          "When all these files are deleted it should be safe to delete this file.";
+        ] in
+        let txt = String.concat "" (List.map (fun x -> x ^ "\n") preamble) ^ marker ^ (Jsonrpc.to_string (rpc_of_t t)) in
+        file_of_string (filename sr name) txt
+    end
+
     let clone ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
       let vdi = vdi_info.vdi in
@@ -277,6 +315,7 @@ module Implementation = struct
       Vhdformat.snapshot vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
       let snapshot = choose_filename sr vdi_info in
       Vhdformat.snapshot (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
+      Vhd_tree_node.(write sr base { children = [ vdi; snapshot ] });
       let vdi_info = { vdi_info with vdi = snapshot } in
       file_of_string (md_path_of sr snapshot) (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
