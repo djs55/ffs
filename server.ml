@@ -28,6 +28,8 @@ let features = [
   "VDI_DETACH", 0L;
   "VDI_ACTIVATE", 0L;
   "VDI_DEACTIVATE", 0L;
+  "VDI_SNAPSHOT", 0L;
+  "VDI_CLONE", 0L;
 ]
 let _path = "path"
 let _format = "format"
