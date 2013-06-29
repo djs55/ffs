@@ -1,3 +1,6 @@
+0.9.5 (29-Jun-2013):
+* add .vhd support
+
 0.9.4 (18-Jun-2013):
 * make SR.attach and SR.detach idempotent
 
