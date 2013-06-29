@@ -249,19 +249,6 @@ module Implementation = struct
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
-    let destroy ctx ~dbg ~sr ~vdi =
-      let sr = Attached_srs.get sr in
-      let vdi_path = vdi_path_of sr vdi in
-      if not(Sys.file_exists vdi_path) && not(Sys.file_exists (md_path_of sr vdi))
-      then raise (Vdi_does_not_exist vdi);
-
-      begin match vdi_format_of sr vdi with
-      | Vhd -> Vhdformat.destroy vdi_path
-      | Raw -> Sparse.destroy vdi_path
-      end;
-
-      rm_f (md_path_of sr vdi)
-
     module Vhd_tree_node = struct
       type t = {
         children: string list;
@@ -298,7 +285,42 @@ module Implementation = struct
         ] in
         let txt = String.concat "" (List.map (fun x -> x ^ "\n") preamble) ^ marker ^ (Jsonrpc.to_string (rpc_of_t t)) in
         file_of_string (filename sr name) txt
+
+      let rec rm sr name =
+          let vhd_filename = vdi_path_of sr name in
+          begin match Vhdformat.get_parent vhd_filename with
+          | Some parent ->
+            begin match read sr parent with
+            | None ->
+              error "vhd node %s has no associated metadata -- I can't risk deleting it" parent
+            | Some t ->
+              let children = List.filter (fun x -> x <> name) t.children in
+              if children = [] then begin
+                info "vhd node %s has no children: deleting" parent;
+                rm sr parent
+              end else begin
+                info "vhd node %s now has children: [ %s ]" parent (String.concat "; " children);
+                write sr parent { children }
+              end
+            end
+          | None -> ()
+          end;
+          rm_f vhd_filename;
+          rm_f (vhd_filename ^ suffix)
     end
+
+    let destroy ctx ~dbg ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let vdi_path = vdi_path_of sr vdi in
+      if not(Sys.file_exists vdi_path) && not(Sys.file_exists (md_path_of sr vdi))
+      then raise (Vdi_does_not_exist vdi);
+
+      begin match vdi_format_of sr vdi with
+      | Vhd -> Vhd_tree_node.rm sr vdi
+      | Raw -> Sparse.destroy vdi_path
+      end;
+
+      rm_f (md_path_of sr vdi)
 
     let clone ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in

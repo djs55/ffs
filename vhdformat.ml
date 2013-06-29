@@ -34,10 +34,6 @@ let create path size =
   end;
   Vhd.create path size (Vhd.Ty_dynamic) max_size []
 
-let destroy path =
-  (* TODO: GC *)
-  try Unix.unlink path with _ -> ()
-
 let my_context = ref (Tapctl.create ())
 let ctx () = !my_context
 
@@ -74,3 +70,8 @@ let detach dev =
 let snapshot leaf_path parent_path parent_format virtual_size =
   Vhd.snapshot leaf_path virtual_size parent_path max_size (if parent_format = Raw then [Vhd.Flag_creat_parent_raw] else [])
 
+let get_parent path =
+  let vhd = Vhd._open path [Vhd.Open_rdonly] in
+  finally
+    (fun () -> try Some (Filename.basename (Vhd.get_parent vhd)) with _ -> None)
+    (fun () -> Vhd.close vhd)
