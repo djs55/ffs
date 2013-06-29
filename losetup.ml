@@ -64,8 +64,10 @@ let add file read_write =
       end
     | Some x -> x
 
-let remove file =
+let remove_by_device device =
+    ignore(run !losetup [ "-d"; device ])
+
+let remove_by_file file =
     match find file with
     | None -> ()
-    | Some device -> ignore (run !losetup ["-d"; device])
-
+    | Some device -> remove_by_device device
