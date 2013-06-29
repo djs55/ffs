@@ -12,6 +12,8 @@
  * GNU Lesser General Public License for more details.
  *)
 
+open Storage_interface
+open Common
 open Int64
 
 let kib = 1024L
@@ -26,8 +28,11 @@ let roundup v block =
 
 let create path size =
   let size = roundup size two_mib in
-  if size < mib or size > max_size
-  then failwith (Printf.sprintf "VDI size must be between 1 MiB and %Ld MiB" max_size)
+  if size < mib or size > max_size then begin
+    error "Cannot create vhd with virtual_size = %Ld MiB (must be between 1 MiB and %Ld MiB)" (div size mib) (div max_size mib);
+    raise (Backend_error("VDI_SIZE", [ to_string size; to_string mib; to_string (div max_size mib) ]))
+  end;
+  Vhd.create path size (Vhd.Ty_dynamic) max_size []
 
 let destroy path =
   (* TODO: GC *)
