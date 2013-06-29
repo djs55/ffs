@@ -13,15 +13,13 @@
  *)
 
 open Xcp_service
+open Common
 
 let driver = "ffs"
 let name = "ffs"
 let description = "Flat File Storage Repository for XCP"
 let vendor = "Citrix"
 let copyright = "Citrix Inc"
-let minor_version = 1
-let major_version = 0
-let version = Printf.sprintf "%d.%d" major_version minor_version
 let required_api_version = "2.0"
 let features = [
   "VDI_CREATE", 0L;
@@ -30,108 +28,60 @@ let features = [
   "VDI_DETACH", 0L;
   "VDI_ACTIVATE", 0L;
   "VDI_DEACTIVATE", 0L;
+  "VDI_SNAPSHOT", 0L;
+  "VDI_CLONE", 0L;
 ]
 let _path = "path"
+let _format = "format"
 let configuration = [
    _path, "path in the filesystem to store images and metadata";
+   _format, "default format for disks (either 'vhd' or 'raw')";
 ]
+let _type = "type" (* in sm-config *)
 
 let json_suffix = ".json"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
-
-module D = Debug.Make(struct let name = "ffs" end)
-open D
+let device_suffix = ".device"
 
 type sr = {
+  sr: string;
   path: string;
+  format: format;
 } with rpc
 type srs = (string * sr) list with rpc
 
-let finally f g =
-  try
-    let result = f () in
-    g ();
-    result
-  with e ->
-    g ();
-    raise e
-
-let string_of_file filename =
-  let ic = open_in filename in
-  let output = Buffer.create 1024 in
-  try
-    while true do
-      let block = String.make 4096 '\000' in
-      let n = input ic block 0 (String.length block) in
-      if n = 0 then raise End_of_file;
-      Buffer.add_substring output block 0 n
-    done;
-    "" (* never happens *)
-  with End_of_file ->
-    close_in ic;
-    Buffer.contents output
-
-let file_of_string filename string =
-  let oc = open_out filename in
-  finally
-    (fun () ->
-      debug "write >%s %s" filename string;
-      output oc string 0 (String.length string)
-    ) (fun () -> close_out oc)
-
-let startswith prefix x =
-  let prefix' = String.length prefix in
-  let x' = String.length x in
-  x' >= prefix' && (String.sub x 0 prefix' = prefix)
-
-let remove_prefix prefix x =
-  let prefix' = String.length prefix in
-  let x' = String.length x in
-  String.sub x prefix' (x' - prefix')
-
-let endswith suffix x =
-  let suffix' = String.length suffix in
-  let x' = String.length x in
-  x' >= suffix' && (String.sub x (x' - suffix') suffix' = suffix)
-
-let iso8601_of_float x = 
-  let time = Unix.gmtime x in
-  Printf.sprintf "%04d%02d%02dT%02d:%02d:%02dZ"
-    (time.Unix.tm_year+1900)
-    (time.Unix.tm_mon+1)
-    time.Unix.tm_mday
-    time.Unix.tm_hour
-    time.Unix.tm_min
-    time.Unix.tm_sec
-
-
-(** create a directory, and create parent if doesn't exist *)
-let mkdir_rec dir perm =
-  let mkdir_safe dir perm =
-    try Unix.mkdir dir perm with Unix.Unix_error (Unix.EEXIST, _, _) -> () in
-  let rec p_mkdir dir =
-    let p_name = Filename.dirname dir in
-    if p_name <> "/" && p_name <> "." 
-    then p_mkdir p_name;
-    mkdir_safe dir perm in
-  p_mkdir dir
-
-let rm_f x = try Unix.unlink x with _ -> ()
-
-let ( |> ) a b = b a
-
-let retry_every n f =
-  let finished = ref false in
-  while (not !finished) do
-    try
-      let () = f () in
-      finished := true;
-    with e ->
-      debug "Caught %s: sleeping %f. before trying again" (Printexc.to_string e) n;
-      Thread.delay n
-  done
-
 open Storage_interface
+
+let format_of_string x = match String.lowercase x with
+  | "vhd" -> Some Vhd
+  | "raw" -> Some Raw
+  | y ->
+    warn "Unknown disk format requested %s (possible values are 'vhd' and 'raw')" y;
+    None
+
+let string_of_format = function
+  | Vhd -> "vhd"
+  | Raw -> "raw"
+
+let default_format = ref Vhd
+
+let format_of_kvpairs key default x =
+  match (if List.mem_assoc key x
+    then format_of_string (List.assoc key x)
+    else None) with
+  | Some x -> x
+  | None -> default
+
+let set_default_format x =
+  begin match (format_of_string x) with
+    | Some x ->
+      default_format := x;
+    | None ->
+      ()
+  end;
+  info "Default disk format will be: %s" (string_of_format !default_format)
+
+let get_default_format () = string_of_format !default_format
 
 module Attached_srs = struct
   let table = Hashtbl.create 16
@@ -176,7 +126,7 @@ module Implementation = struct
         description;
         vendor;
         copyright;
-        version;
+        version = Version.version;
         required_api_version;
         features;
         configuration;
@@ -188,8 +138,6 @@ module Implementation = struct
   module VDI = struct
     (* The following are all not implemented: *)
     open Storage_skeleton.VDI
-    let clone = clone
-    let snapshot = snapshot
     let epoch_begin = epoch_begin
     let epoch_end = epoch_end
     let get_url = get_url
@@ -203,6 +151,8 @@ module Implementation = struct
 
     let vdi_path_of sr vdi =
         Filename.concat sr.path vdi
+
+    let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s%s" name sr.sr vdi device_suffix
 
     let md_path_of sr vdi =
         vdi_path_of sr vdi ^ json_suffix
@@ -232,6 +182,25 @@ module Implementation = struct
             persistent = true;
           } else None
         end
+
+   let vdi_format_of sr vdi =
+     match vdi_info_of_path (vdi_path_of sr vdi) with
+     | None ->
+       error "VDI %s/%s has no associated vdi_info - I don't know how to operate on it." sr.sr vdi;
+       failwith (Printf.sprintf "VDI %s/%s has no vdi_info" sr.sr vdi)
+     | Some vdi_info ->
+       begin
+         if not(List.mem_assoc _type vdi_info.sm_config) then begin
+           error "VDI %s/%s has no sm_config:type - I don't know how to operate on it." sr.sr vdi;
+           failwith (Printf.sprintf "VDI %s/%s has no sm-config:type" sr.sr vdi)
+         end;
+         let t = List.assoc _type vdi_info.sm_config in
+         match format_of_string t with
+         | Some x -> x
+         | None ->
+           error "VDI %s/%s has an unrecognised sm_config:type=%s - I don't know how to operate on it." sr.sr vdi t;
+           failwith (Printf.sprintf "VDI %s/%s has unrecognised sm-config:type=%s" sr.sr vdi t)
+       end
 
     let choose_filename sr vdi_info =
       let existing = Sys.readdir sr.path |> Array.to_list in
@@ -264,50 +233,186 @@ module Implementation = struct
 
     let create ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
+      let format = format_of_kvpairs _type sr.format vdi_info.sm_config in
+      let sm_config = (_type, string_of_format format) :: (List.filter (fun (k, _) -> k <> _type) vdi_info.sm_config) in
       let vdi_info = { vdi_info with
         vdi = choose_filename sr vdi_info;
-        snapshot_time = iso8601_of_float 0.
+        snapshot_time = iso8601_of_float 0.;
+        sm_config;
       } in
       let vdi_path = vdi_path_of sr vdi_info.vdi in
       let md_path = md_path_of sr vdi_info.vdi in
 
-      let f = Unix.openfile vdi_path [ Unix.O_CREAT; Unix.O_WRONLY ] 0 in
-      finally
-        (fun () ->
-          let _ : int64 = Unix.LargeFile.lseek f (Int64.sub vdi_info.virtual_size 1L) Unix.SEEK_SET in
-          let n = Unix.write f "\000" 0 1 in
-          if n <> 1 then begin
-            error "Failed to create %s" vdi_path;
-            failwith (Printf.sprintf "Failed to create %s" vdi_path)
-          end
-        ) (fun () -> Unix.close f);
+      begin match format with
+      | Vhd -> Vhdformat.create vdi_path vdi_info.virtual_size
+      | Raw -> Sparse.create vdi_path vdi_info.virtual_size
+      end;
+      debug "VDI.create %s -> %s (%Ld)" vdi_info.name_label vdi_path vdi_info.virtual_size;  
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
+    module Vhd_tree_node = struct
+      type t = {
+        children: string list;
+      } with rpc
+
+      let suffix = ".readme"
+
+      let marker = "Machine readable data follows - DO NOT EDIT\n"
+      let marker_regex = Re_str.regexp_string marker
+
+      let filename sr name = Filename.concat sr.path name ^ suffix
+      let read sr name =
+        let txt = string_of_file (filename sr name) in
+        match Re_str.bounded_split_delim marker_regex txt 2 with
+        | [ _; x ] -> Some (t_of_rpc (Jsonrpc.of_string x))
+        | _ -> None
+       
+      let write sr name t =
+        let vhd_filename = vdi_path_of sr name in
+        let preamble = [
+          "Warning";
+          "=======";
+          Printf.sprintf "The file %s is a link in a chain of vhd files; it contains some" vhd_filename;
+          "of the disk blocks needed to reconstruct the virtual disk.";
+          "";
+          Printf.sprintf "DO NOT delete %s unless you are SURE it is nolonger referenced by" vhd_filename;
+          "any other vhd files. The system will automatically delete the file when it is";
+          "nolonger needed.";
+          "";
+          "Explanation of the data below";
+          "-----------------------------";
+          "The machine-readable data below lists the vhd files which depend on this one.";
+          "When all these files are deleted it should be safe to delete this file.";
+        ] in
+        let txt = String.concat "" (List.map (fun x -> x ^ "\n") preamble) ^ marker ^ (Jsonrpc.to_string (rpc_of_t t)) in
+        file_of_string (filename sr name) txt
+
+      let rec rm sr name =
+          let vhd_filename = vdi_path_of sr name in
+          begin match Vhdformat.get_parent vhd_filename with
+          | Some parent ->
+            begin match read sr parent with
+            | None ->
+              error "vhd node %s has no associated metadata -- I can't risk deleting it" parent
+            | Some t ->
+              let children = List.filter (fun x -> x <> name) t.children in
+              if children = [] then begin
+                info "vhd node %s has no children: deleting" parent;
+                rm sr parent
+              end else begin
+                info "vhd node %s now has children: [ %s ]" parent (String.concat "; " children);
+                write sr parent { children }
+              end
+            end
+          | None -> ()
+          end;
+          rm_f vhd_filename;
+          rm_f (vhd_filename ^ suffix)
+
+      let rename sr src dst =
+        let vhd_filename = vdi_path_of sr src in
+        begin match Vhdformat.get_parent vhd_filename with
+        | Some parent ->
+          begin match read sr parent with
+          | None ->
+            error "vhd node %s has no associated metadata -- I can't risk manipulating it" parent;
+            failwith "vhd metadata integrity check failed"
+          | Some t ->
+            let children = dst :: (List.filter (fun x -> x <> src) t.children) in
+            write sr parent { children }
+          end
+        | None -> ()
+        end
+    end
+
     let destroy ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
-      if not(Sys.file_exists (vdi_path_of sr vdi)) && not(Sys.file_exists (md_path_of sr vdi))
+      let vdi_path = vdi_path_of sr vdi in
+      if not(Sys.file_exists vdi_path) && not(Sys.file_exists (md_path_of sr vdi))
       then raise (Vdi_does_not_exist vdi);
-      rm_f (vdi_path_of sr vdi);
+
+      debug "VDI.destroy %s" vdi;
+      begin match vdi_format_of sr vdi with
+      | Vhd -> Vhd_tree_node.rm sr vdi
+      | Raw -> Sparse.destroy vdi_path
+      end;
+
       rm_f (md_path_of sr vdi)
 
-    let stat ctx ~dbg ~sr ~vdi = assert false
+    let clone ctx ~dbg ~sr ~vdi_info =
+      let sr = Attached_srs.get sr in
+      let vdi = vdi_info.vdi in
+      let vdi_path = vdi_path_of sr vdi in
+      let md_path = md_path_of sr vdi in
+      if not(Sys.file_exists vdi_path) && not(Sys.file_exists md_path)
+      then raise (Vdi_does_not_exist vdi);
+      info "VDI.clone %s" vdi;
+      let format = vdi_format_of sr vdi in
+      let base = choose_filename sr vdi_info in
+      (* TODO: stop renaming because it causes problems on NFS *)
+      info "rename %s -> %s" vdi_path (vdi_path_of sr base);
+      Vhd_tree_node.rename sr vdi base;
+      Unix.rename vdi_path (vdi_path_of sr base);
+      Vhdformat.snapshot vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
+      let snapshot = choose_filename sr vdi_info in
+      Vhdformat.snapshot (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
+      Vhd_tree_node.(write sr base { children = [ vdi; snapshot ] });
+      let vdi_info = { vdi_info with vdi = snapshot } in
+      file_of_string (md_path_of sr snapshot) (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
+      vdi_info
+
+    let snapshot = clone
+
+    let stat ctx ~dbg ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let md_path = md_path_of sr vdi in
+      vdi_info_of_rpc (Jsonrpc.of_string (string_of_file md_path))
+
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
       let sr = Attached_srs.get sr in
-      let path = vdi_path_of sr vdi in
-      let device = Losetup.add path read_write in {
+      let vdi_path = vdi_path_of sr vdi in
+      let device = match vdi_format_of sr vdi with
+      | Vhd -> Vhdformat.attach vdi_path read_write
+      | Raw -> Sparse.attach vdi_path read_write
+      in
+      let symlink = device_path_of sr vdi in
+      mkdir_rec (Filename.dirname symlink) 0o700;
+      Unix.symlink device symlink;
+      {
         params = device;
         xenstore_data = []
       }
     let detach ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
-      let path = vdi_path_of sr vdi in
+      let symlink = device_path_of sr vdi in
+      let device = Unix.readlink symlink in
       (* We can get transient failures from background tasks on the system
          inspecting the block device. We must not allow detach to fail, so
          we should keep retrying until the transient failures stop happening. *)
-      retry_every 0.1 (fun () -> Losetup.remove path)
-    let activate ctx ~dbg ~dp ~sr ~vdi = ()
-    let deactivate ctx ~dbg ~dp ~sr ~vdi = ()
+      retry_every 0.1 (fun () ->
+        match vdi_format_of sr vdi with
+        | Vhd -> Vhdformat.detach device
+        | Raw -> Sparse.detach device
+      );
+      rm_f symlink
+    let activate ctx ~dbg ~dp ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let symlink = device_path_of sr vdi in
+      let device = Unix.readlink symlink in
+      let path = vdi_path_of sr vdi in
+      begin match vdi_format_of sr vdi with
+      | Vhd -> Vhdformat.activate device path Tapctl.Vhd
+      | Raw -> Sparse.activate device path
+      end
+    let deactivate ctx ~dbg ~dp ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let symlink = device_path_of sr vdi in
+      let device = Unix.readlink symlink in
+      begin match vdi_format_of sr vdi with
+      | Vhd -> Vhdformat.deactivate device
+      | Raw -> Sparse.deactivate device
+      end
   end
   module SR = struct
     open Storage_skeleton.SR
@@ -335,7 +440,8 @@ module Implementation = struct
            raise (Missing_configuration_parameter _path);
        end;
        let path = List.assoc _path device_config in
-       Attached_srs.put sr { path }
+       let format = format_of_kvpairs _format !default_format device_config in
+       Attached_srs.put sr { sr; path; format }
     let create ctx ~dbg ~sr ~device_config ~physical_size =
        (* attach will validate the device_config parameters *)
        attach ctx ~dbg ~sr ~device_config;

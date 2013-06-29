@@ -16,8 +16,6 @@ open Xcp_service
 module D = Debug.Make(struct let name = "ffs" end)
 open D
 
-open Server
-
 let resources = [
   { Xcp_service.name = "losetup";
     description = "used to set up loopback block devices";
@@ -33,17 +31,18 @@ let options = [
   "use-switch", Arg.Set Xcp_client.use_switch, (fun () -> string_of_bool !Xcp_client.use_switch), "true if we want to use the message switch";
   "socket-path", Arg.Set_string socket_path, (fun () -> !socket_path), "Path of listening socket";
   "queue-name", Arg.Set_string Storage_interface.queue_name, (fun () -> !Storage_interface.queue_name), "Name of queue to listen on";
+  "default-format", Arg.String Server.set_default_format, Server.get_default_format, "Default format for disk files";
 ]
 
 let main () =
-  debug "%s version %d.%d starting" name major_version minor_version;
+  debug "%s version %s starting" Server.name Version.version;
   (* The default queue name: *)
   Storage_interface.queue_name := "org.xen.xcp.storage.ffs";
 
   configure ~options ~resources ();
   let server = Xcp_service.make ~path:!socket_path
     ~queue_name:!Storage_interface.queue_name
-    ~rpc_fn:(fun s -> Server.process () s) () in
+    ~rpc_fn:(fun s -> Server.Server.process () s) () in
 
   Xcp_service.maybe_daemonize ();
 
