@@ -45,7 +45,7 @@ let file_of_string filename string =
   let oc = open_out filename in
   finally
     (fun () ->
-      debug "write >%s %s" filename string;
+      debug "write >%s" filename;
       output oc string 0 (String.length string)
     ) (fun () -> close_out oc)
 
@@ -86,7 +86,13 @@ let mkdir_rec dir perm =
     mkdir_safe dir perm in
   p_mkdir dir
 
-let rm_f x = try Unix.unlink x with _ -> ()
+let rm_f x =
+  try
+    Unix.unlink x;
+    debug "rm %s" x
+   with _ ->
+    debug "%s already deleted" x;
+    ()
 
 let ( |> ) a b = b a
 

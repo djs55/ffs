@@ -247,7 +247,7 @@ module Implementation = struct
       | Vhd -> Vhdformat.create vdi_path vdi_info.virtual_size
       | Raw -> Sparse.create vdi_path vdi_info.virtual_size
       end;
-      
+      debug "VDI.create %s -> %s (%Ld)" vdi_info.name_label vdi_path vdi_info.virtual_size;  
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
@@ -309,6 +309,21 @@ module Implementation = struct
           end;
           rm_f vhd_filename;
           rm_f (vhd_filename ^ suffix)
+
+      let rename sr src dst =
+        let vhd_filename = vdi_path_of sr src in
+        begin match Vhdformat.get_parent vhd_filename with
+        | Some parent ->
+          begin match read sr parent with
+          | None ->
+            error "vhd node %s has no associated metadata -- I can't risk manipulating it" parent;
+            failwith "vhd metadata integrity check failed"
+          | Some t ->
+            let children = dst :: (List.filter (fun x -> x <> src) t.children) in
+            write sr parent { children }
+          end
+        | None -> ()
+        end
     end
 
     let destroy ctx ~dbg ~sr ~vdi =
@@ -317,6 +332,7 @@ module Implementation = struct
       if not(Sys.file_exists vdi_path) && not(Sys.file_exists (md_path_of sr vdi))
       then raise (Vdi_does_not_exist vdi);
 
+      debug "VDI.destroy %s" vdi;
       begin match vdi_format_of sr vdi with
       | Vhd -> Vhd_tree_node.rm sr vdi
       | Raw -> Sparse.destroy vdi_path
@@ -331,10 +347,12 @@ module Implementation = struct
       let md_path = md_path_of sr vdi in
       if not(Sys.file_exists vdi_path) && not(Sys.file_exists md_path)
       then raise (Vdi_does_not_exist vdi);
+      info "VDI.clone %s" vdi;
       let format = vdi_format_of sr vdi in
       let base = choose_filename sr vdi_info in
       (* TODO: stop renaming because it causes problems on NFS *)
       info "rename %s -> %s" vdi_path (vdi_path_of sr base);
+      Vhd_tree_node.rename sr vdi base;
       Unix.rename vdi_path (vdi_path_of sr base);
       Vhdformat.snapshot vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
       let snapshot = choose_filename sr vdi_info in
