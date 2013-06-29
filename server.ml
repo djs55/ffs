@@ -33,35 +33,61 @@ let features = [
   "VDI_DEACTIVATE", 0L;
 ]
 let _path = "path"
+let _format = "format"
 let configuration = [
    _path, "path in the filesystem to store images and metadata";
+   _format, "default format for disks (either 'vhd' or 'raw')";
 ]
+let _type = "type" (* in sm-config *)
 
 let json_suffix = ".json"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
 let device_suffix = ".device"
 
+type format =
+  | Vhd
+  | Raw
+with rpc
+
 type sr = {
   sr: string;
   path: string;
+  format: format;
 } with rpc
 type srs = (string * sr) list with rpc
 
 open Storage_interface
 
-type format =
-  | Vhd
-  | Raw
+let format_of_string x = match String.lowercase x with
+  | "vhd" -> Some Vhd
+  | "raw" -> Some Raw
+  | y ->
+    warn "Unknown disk format requested %s (possible values are 'vhd' and 'raw')" y;
+    None
 
-let format_of_vdi_info x =
-  if List.mem_assoc "type" x.sm_config
-  then match String.lowercase (List.assoc "type" x.sm_config) with
-    | "vhd" -> Some Vhd
-    | "raw" -> Some Raw
-    | y ->
-      warn "Unknown sm-config:type=%s for vdi %s/%s" y x.name_label x.vdi;
-      None
-  else None
+let string_of_format = function
+  | Vhd -> "vhd"
+  | Raw -> "raw"
+
+let default_format = ref Vhd
+
+let format_of_kvpairs key default x =
+  match (if List.mem_assoc key x
+    then format_of_string (List.assoc key x)
+    else None) with
+  | Some x -> x
+  | None -> default
+
+let set_default_format x =
+  begin match (format_of_string x) with
+    | Some x ->
+      default_format := x;
+    | None ->
+      ()
+  end;
+  info "Default disk format will be: %s" (string_of_format !default_format)
+
+let get_default_format () = string_of_format !default_format
 
 module Attached_srs = struct
   let table = Hashtbl.create 16
@@ -165,6 +191,25 @@ module Implementation = struct
           } else None
         end
 
+   let vdi_format_of sr vdi =
+     match vdi_info_of_path (vdi_path_of sr vdi) with
+     | None ->
+       error "VDI %s/%s has no associated vdi_info - I don't know how to operate on it." sr.sr vdi;
+       failwith (Printf.sprintf "VDI %s/%s has no vdi_info" sr.sr vdi)
+     | Some vdi_info ->
+       begin
+         if not(List.mem_assoc _type vdi_info.sm_config) then begin
+           error "VDI %s/%s has no sm_config:type - I don't know how to operate on it." sr.sr vdi;
+           failwith (Printf.sprintf "VDI %s/%s has no sm-config:type" sr.sr vdi)
+         end;
+         let t = List.assoc _type vdi_info.sm_config in
+         match format_of_string t with
+         | Some x -> x
+         | None ->
+           error "VDI %s/%s has an unrecognised sm_config:type=%s - I don't know how to operate on it." sr.sr vdi t;
+           failwith (Printf.sprintf "VDI %s/%s has unrecognised sm-config:type=%s" sr.sr vdi t)
+       end
+
     let choose_filename sr vdi_info =
       let existing = Sys.readdir sr.path |> Array.to_list in
       let name_label =
@@ -196,31 +241,45 @@ module Implementation = struct
 
     let create ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
+      let format = format_of_kvpairs _type sr.format vdi_info.sm_config in
+      let sm_config = (_type, string_of_format format) :: (List.filter (fun (k, _) -> k <> _type) vdi_info.sm_config) in
       let vdi_info = { vdi_info with
         vdi = choose_filename sr vdi_info;
-        snapshot_time = iso8601_of_float 0.
+        snapshot_time = iso8601_of_float 0.;
+        sm_config;
       } in
       let vdi_path = vdi_path_of sr vdi_info.vdi in
       let md_path = md_path_of sr vdi_info.vdi in
 
-      Vhdformat.create vdi_path vdi_info.virtual_size;
+      begin match format with
+      | Vhd -> Vhdformat.create vdi_path vdi_info.virtual_size
+      | Raw -> Sparse.create vdi_path vdi_info.virtual_size
+      end;
       
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
     let destroy ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
-      if not(Sys.file_exists (vdi_path_of sr vdi)) && not(Sys.file_exists (md_path_of sr vdi))
+      let vdi_path = vdi_path_of sr vdi in
+      if not(Sys.file_exists vdi_path) && not(Sys.file_exists (md_path_of sr vdi))
       then raise (Vdi_does_not_exist vdi);
 
-      Vhdformat.destroy (vdi_path_of sr vdi);
+      begin match vdi_format_of sr vdi with
+      | Vhd -> Vhdformat.destroy vdi_path
+      | Raw -> Sparse.destroy vdi_path
+      end;
 
       rm_f (md_path_of sr vdi)
 
     let stat ctx ~dbg ~sr ~vdi = assert false
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
       let sr = Attached_srs.get sr in
-      let device = Vhdformat.attach () in
+      let vdi_path = vdi_path_of sr vdi in
+      let device = match vdi_format_of sr vdi with
+      | Vhd -> Vhdformat.attach vdi_path read_write
+      | Raw -> Sparse.attach vdi_path read_write
+      in
       let symlink = device_path_of sr vdi in
       mkdir_rec (Filename.dirname symlink) 0o700;
       Unix.symlink device symlink;
@@ -235,19 +294,29 @@ module Implementation = struct
       (* We can get transient failures from background tasks on the system
          inspecting the block device. We must not allow detach to fail, so
          we should keep retrying until the transient failures stop happening. *)
-      retry_every 0.1 (fun () -> Vhdformat.detach device);
+      retry_every 0.1 (fun () ->
+        match vdi_format_of sr vdi with
+        | Vhd -> Vhdformat.detach device
+        | Raw -> Sparse.detach device
+      );
       rm_f symlink
     let activate ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
       let symlink = device_path_of sr vdi in
       let device = Unix.readlink symlink in
       let path = vdi_path_of sr vdi in
-      Vhdformat.activate device path Tapctl.Vhd
+      begin match vdi_format_of sr vdi with
+      | Vhd -> Vhdformat.activate device path Tapctl.Vhd
+      | Raw -> Sparse.activate device path
+      end
     let deactivate ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
       let symlink = device_path_of sr vdi in
       let device = Unix.readlink symlink in
-      Vhdformat.deactivate device
+      begin match vdi_format_of sr vdi with
+      | Vhd -> Vhdformat.deactivate device
+      | Raw -> Sparse.deactivate device
+      end
   end
   module SR = struct
     open Storage_skeleton.SR
@@ -275,7 +344,8 @@ module Implementation = struct
            raise (Missing_configuration_parameter _path);
        end;
        let path = List.assoc _path device_config in
-       Attached_srs.put sr { sr; path }
+       let format = format_of_kvpairs _format !default_format device_config in
+       Attached_srs.put sr { sr; path; format }
     let create ctx ~dbg ~sr ~device_config ~physical_size =
        (* attach will validate the device_config parameters *)
        attach ctx ~dbg ~sr ~device_config;

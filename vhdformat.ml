@@ -47,7 +47,7 @@ let t_unpause t = Tapctl.unpause (ctx ()) t
 let get_paused t = Tapctl.is_paused (ctx ()) t
 let get_activated t = Tapctl.is_active (ctx ()) t
 
-let attach _ =
+let attach _ _ =
   let minor = Tapctl.allocate (ctx ()) in
   let tid = Tapctl.spawn (ctx ()) in
   let dev = Tapctl.attach (ctx ()) tid minor in
