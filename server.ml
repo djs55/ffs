@@ -41,11 +41,6 @@ let json_suffix = ".json"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
 let device_suffix = ".device"
 
-type format =
-  | Vhd
-  | Raw
-with rpc
-
 type sr = {
   sr: string;
   path: string;
@@ -141,8 +136,6 @@ module Implementation = struct
   module VDI = struct
     (* The following are all not implemented: *)
     open Storage_skeleton.VDI
-    let clone = clone
-    let snapshot = snapshot
     let epoch_begin = epoch_begin
     let epoch_end = epoch_end
     let get_url = get_url
@@ -269,7 +262,32 @@ module Implementation = struct
 
       rm_f (md_path_of sr vdi)
 
-    let stat ctx ~dbg ~sr ~vdi = assert false
+    let clone ctx ~dbg ~sr ~vdi_info =
+      let sr = Attached_srs.get sr in
+      let vdi = vdi_info.vdi in
+      let vdi_path = vdi_path_of sr vdi in
+      let md_path = md_path_of sr vdi in
+      if not(Sys.file_exists vdi_path) && not(Sys.file_exists md_path)
+      then raise (Vdi_does_not_exist vdi);
+      let format = vdi_format_of sr vdi in
+      let base = choose_filename sr vdi_info in
+      (* TODO: stop renaming because it causes problems on NFS *)
+      info "rename %s -> %s" vdi_path (vdi_path_of sr base);
+      Unix.rename vdi_path (vdi_path_of sr base);
+      Vhdformat.snapshot vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
+      let snapshot = choose_filename sr vdi_info in
+      Vhdformat.snapshot (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
+      let vdi_info = { vdi_info with vdi = snapshot } in
+      file_of_string (md_path_of sr snapshot) (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
+      vdi_info
+
+    let snapshot = clone
+
+    let stat ctx ~dbg ~sr ~vdi =
+      let sr = Attached_srs.get sr in
+      let md_path = md_path_of sr vdi in
+      vdi_info_of_rpc (Jsonrpc.of_string (string_of_file md_path))
+
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
       let sr = Attached_srs.get sr in
       let vdi_path = vdi_path_of sr vdi in

@@ -70,3 +70,7 @@ let deactivate dev =
 let detach dev =
   let dev, _, _ = Tapctl.of_device (ctx ()) dev in
   t_detach dev
+
+let snapshot leaf_path parent_path parent_format virtual_size =
+  Vhd.snapshot leaf_path virtual_size parent_path max_size (if parent_format = Raw then [Vhd.Flag_creat_parent_raw] else [])
+

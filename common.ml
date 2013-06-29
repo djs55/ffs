@@ -101,3 +101,9 @@ let retry_every n f =
       Thread.delay n
   done
 
+type format =
+  | Vhd
+  | Raw
+with rpc
+
+
