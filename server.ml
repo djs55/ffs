@@ -39,6 +39,7 @@ let configuration = [
 ]
 let _type = "type" (* in sm-config *)
 
+let iso_suffix = ".iso"
 let json_suffix = ".json"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
 let device_suffix = ".device"
@@ -165,6 +166,8 @@ module Implementation = struct
         end else begin
           let open Unix.LargeFile in
           let stats = stat path in
+          (* We usually can't store additonal data in read/only directories
+             full of .iso images. We assume these files are Raw. *)
           if stats.st_kind = Unix.S_REG && not (endswith json_suffix path) then Some {
             vdi = Filename.basename path;
             content_id = "";
@@ -178,7 +181,7 @@ module Implementation = struct
             read_only = false;
             virtual_size = stats.st_size;
             physical_utilisation = stats.st_size;
-            sm_config = [];
+            sm_config = if endswith iso_suffix path then [ _type, string_of_format Raw ] else [];
             persistent = true;
           } else None
         end
