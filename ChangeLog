@@ -1,3 +1,6 @@
+0.9.8 (3-Jul-2013):
+* typo: listen on 'ext' rather than 'ext3'
+
 0.9.7 (3-Jul-2013):
 * assume a file with extension .vhd is a vhd
 
