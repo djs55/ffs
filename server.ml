@@ -39,10 +39,15 @@ let configuration = [
 ]
 let _type = "type" (* in sm-config *)
 
-let iso_suffix = ".iso"
-let json_suffix = ".json"
-let state_path = Printf.sprintf "/var/run/nonpersistent/%s%s" name json_suffix
-let device_suffix = ".device"
+let iso_ext = "iso"
+let vhd_ext = "vhd"
+let json_ext = "json"
+let readme_ext = "readme"
+let state_path = Printf.sprintf "/var/run/nonpersistent/%s.%s" name json_ext
+let device_ext = "device"
+
+let dot_regexp = Re_str.regexp_string "."
+let extension x = List.hd (List.tl (Re_str.split_delim dot_regexp x))
 
 type sr = {
   sr: string;
@@ -153,22 +158,30 @@ module Implementation = struct
     let vdi_path_of sr vdi =
         Filename.concat sr.path vdi
 
-    let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s%s" name sr.sr vdi device_suffix
+    let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s.%s" name sr.sr vdi device_ext
 
     let md_path_of sr vdi =
-        vdi_path_of sr vdi ^ json_suffix
+        vdi_path_of sr vdi ^ "." ^ json_ext
 
     let vdi_info_of_path path =
-        let md_path = path ^ json_suffix in
+        let md_path = path ^ "." ^ json_ext in
         if Sys.file_exists md_path then begin
           let txt = string_of_file md_path in
           Some (vdi_info_of_rpc (Jsonrpc.of_string txt))
         end else begin
           let open Unix.LargeFile in
           let stats = stat path in
+          let ext = extension path in
           (* We usually can't store additonal data in read/only directories
-             full of .iso images. We assume these files are Raw. *)
-          if stats.st_kind = Unix.S_REG && not (endswith json_suffix path) then Some {
+             full of .iso images. We assume these files are Raw.
+             Openstack wants to create files with extension .vhd and have
+             these detected as vhds. *)
+          let ext_format = [
+            iso_ext, Raw;
+            vhd_ext, Vhd;
+          ] in
+
+          if stats.st_kind = Unix.S_REG && not(List.mem ext [ json_ext; readme_ext ]) then Some {
             vdi = Filename.basename path;
             content_id = "";
             name_label = Filename.basename path;
@@ -181,7 +194,10 @@ module Implementation = struct
             read_only = false;
             virtual_size = stats.st_size;
             physical_utilisation = stats.st_size;
-            sm_config = if endswith iso_suffix path then [ _type, string_of_format Raw ] else [];
+            sm_config =
+              if List.mem_assoc ext ext_format 
+              then [ _type, string_of_format (List.assoc ext ext_format) ]
+              else [];
             persistent = true;
           } else None
         end
@@ -259,12 +275,10 @@ module Implementation = struct
         children: string list;
       } with rpc
 
-      let suffix = ".readme"
-
       let marker = "Machine readable data follows - DO NOT EDIT\n"
       let marker_regex = Re_str.regexp_string marker
 
-      let filename sr name = Filename.concat sr.path name ^ suffix
+      let filename sr name = Filename.concat sr.path name ^ "." ^ readme_ext
       let read sr name =
         let txt = string_of_file (filename sr name) in
         match Re_str.bounded_split_delim marker_regex txt 2 with
@@ -311,7 +325,7 @@ module Implementation = struct
           | None -> ()
           end;
           rm_f vhd_filename;
-          rm_f (vhd_filename ^ suffix)
+          rm_f (vhd_filename ^ "." ^ readme_ext)
 
       let rename sr src dst =
         let vhd_filename = vdi_path_of sr src in
