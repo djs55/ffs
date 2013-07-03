@@ -1,3 +1,6 @@
+0.9.7 (3-Jul-2013):
+* assume a file with extension .vhd is a vhd
+
 0.9.6 (1-Jul-2013):
 * .raw .isos work again
 
