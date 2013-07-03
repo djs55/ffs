@@ -27,25 +27,33 @@ let resources = [
 
 let socket_path = ref !Storage_interface.default_path
 
+let comma = Re_str.regexp_string ","
+let csv = Re_str.split_delim comma
+
+let queues : string list ref = ref [
+  "org.xen.xcp.storage.ffs";
+  "org.xen.xcp.storage.ext3";
+]
+
 let options = [
   "use-switch", Arg.Set Xcp_client.use_switch, (fun () -> string_of_bool !Xcp_client.use_switch), "true if we want to use the message switch";
   "socket-path", Arg.Set_string socket_path, (fun () -> !socket_path), "Path of listening socket";
-  "queue-name", Arg.Set_string Storage_interface.queue_name, (fun () -> !Storage_interface.queue_name), "Name of queue to listen on";
+  "queue-name", Arg.String (fun x -> queues := csv x), (fun () -> String.concat "," !queues), "Comma-separated list of queue names to listen on";
   "default-format", Arg.String Server.set_default_format, Server.get_default_format, "Default format for disk files";
 ]
 
 let main () =
   debug "%s version %s starting" Server.name Version.version;
-  (* The default queue name: *)
-  Storage_interface.queue_name := "org.xen.xcp.storage.ffs";
 
   configure ~options ~resources ();
-  let server = Xcp_service.make ~path:!socket_path
-    ~queue_name:!Storage_interface.queue_name
-    ~rpc_fn:(fun s -> Server.Server.process () s) () in
+  let servers = List.map (fun queue_name ->
+    Xcp_service.make ~path:!socket_path ~queue_name
+      ~rpc_fn:(fun s -> Server.Server.process () s) ()
+  ) !queues in
 
   Xcp_service.maybe_daemonize ();
 
-  Xcp_service.serve_forever server
+  let threads = List.map (Thread.create Xcp_service.serve_forever) servers in
+  List.iter Thread.join threads
 
 let _ = main ()
