@@ -1,3 +1,6 @@
+0.9.10 (5-Jul-2013):
+* register the 'iso' driver
+
 0.9.9 (5-Jul-2013):
 * scan: nolonger picks up parent nodes
 
