@@ -70,8 +70,22 @@ let detach dev =
 let snapshot leaf_path parent_path parent_format virtual_size =
   Vhd.snapshot leaf_path virtual_size parent_path max_size (if parent_format = Raw then [Vhd.Flag_creat_parent_raw] else [])
 
-let get_parent path =
-  let vhd = Vhd._open path [Vhd.Open_rdonly] in
+let with_vhd path flags f =
+  let vhd = Vhd._open path flags in
   finally
-    (fun () -> try Some (Filename.basename (Vhd.get_parent vhd)) with _ -> None)
+    (fun () -> f vhd)
     (fun () -> Vhd.close vhd)
+
+let get_parent path =
+  with_vhd path [ Vhd.Open_rdonly ]
+    (fun vhd ->
+      try Some (Filename.basename (Vhd.get_parent vhd)) with _ -> None
+    )
+
+let is_hidden path =
+  with_vhd path [ Vhd.Open_rdonly ]
+    (fun vhd -> Vhd.get_hidden vhd <> 0)
+
+let set_hidden path =
+  with_vhd path [ Vhd.Open_rdwr ]
+    (fun vhd -> Vhd.set_hidden vhd 1)

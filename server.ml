@@ -47,7 +47,9 @@ let state_path = Printf.sprintf "/var/run/nonpersistent/%s.%s" name json_ext
 let device_ext = "device"
 
 let dot_regexp = Re_str.regexp_string "."
-let extension x = List.hd (List.tl (Re_str.split_delim dot_regexp x))
+let extension x = match Re_str.split_delim dot_regexp x with
+  | [] -> ""
+  | x -> List.hd (List.rev x)
 
 type sr = {
   sr: string;
@@ -165,6 +167,7 @@ module Implementation = struct
 
     let vdi_info_of_path path =
         let md_path = path ^ "." ^ json_ext in
+        let readme_path = path ^ "." ^ readme_ext in
         if Sys.file_exists md_path then begin
           let txt = string_of_file md_path in
           Some (vdi_info_of_rpc (Jsonrpc.of_string txt))
@@ -181,7 +184,15 @@ module Implementation = struct
             vhd_ext, Vhd;
           ] in
 
-          if stats.st_kind = Unix.S_REG && not(List.mem ext [ json_ext; readme_ext ]) then Some {
+          (* We hide any .vhd which is marked as 'hidden' OR for which we
+             have created a parent metadata file for. *)
+          if stats.st_kind <> Unix.S_REG
+          || ext = json_ext
+          || ext = readme_ext
+          || (Sys.file_exists readme_path)
+          || (ext = vhd_ext && Vhdformat.is_hidden path)
+          then None
+          else Some {
             vdi = Filename.basename path;
             content_id = "";
             name_label = Filename.basename path;
@@ -199,7 +210,7 @@ module Implementation = struct
               then [ _type, string_of_format (List.assoc ext ext_format) ]
               else [];
             persistent = true;
-          } else None
+          }
         end
 
    let vdi_format_of sr vdi =
