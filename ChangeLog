@@ -1,3 +1,6 @@
+0.9.9 (5-Jul-2013):
+* scan: nolonger picks up parent nodes
+
 0.9.8 (3-Jul-2013):
 * typo: listen on 'ext' rather than 'ext3'
 
