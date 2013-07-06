@@ -1,3 +1,6 @@
+0.9.11 (6-Jul-2013):
+* implement SR.stat for disk usage reporting
+
 0.9.10 (5-Jul-2013):
 * register the 'iso' driver
 
