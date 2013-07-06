@@ -12,41 +12,9 @@
  * GNU Lesser General Public License for more details.
  *)
 
-let losetup = ref "/sbin/losetup"
+open Common
 
-let run cmd args =
-  let null = Unix.openfile "/dev/null" [ Unix.O_RDWR ] 0 in
-  let to_close = ref [ null ] in
-  let close fd =
-    if List.mem fd !to_close then begin
-      to_close := List.filter (fun x -> x <> fd) !to_close;
-      Unix.close fd
-    end in
-  let close_all () = List.iter close !to_close in
-  try
-    let b = Buffer.create 128 in
-    let tmp = String.make 4096 '\000' in
-    let readable, writable = Unix.pipe () in
-    to_close := readable :: writable :: !to_close;
-    let pid = Unix.create_process cmd (Array.of_list (cmd :: args)) null writable null in
-    close writable;
-    let finished = ref false in
-    while not !finished do
-      let n = Unix.read readable tmp 0 (String.length tmp) in
-      Buffer.add_substring b tmp 0 n;
-      finished := n = 0
-    done;
-    close_all ();
-    let _, status = Unix.waitpid [] pid in
-    match status with
-    | Unix.WEXITED 0 -> Buffer.contents b
-    | Unix.WEXITED n ->
-      failwith (Printf.sprintf "%s %s: %d (%s)" cmd (String.concat " " args) n (Buffer.contents b))
-    | _ ->
-      failwith (Printf.sprintf "%s %s failed" cmd (String.concat " " args))
-  with e ->
-    close_all ();
-    raise e
+let losetup = ref "/sbin/losetup"
 
 let find file =
   (* /dev/loop0: [0801]:196616 (/tmp/foo/bar) *)
