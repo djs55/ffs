@@ -8,3 +8,5 @@ executable ffs
   src-dir: .
   build-deps: xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, syslog, vhdlib, tapctl
   pp: camlp4o
+  c-dir: .
+  c-sources: statvfs_stubs.c

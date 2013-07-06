@@ -445,6 +445,13 @@ module Implementation = struct
   module SR = struct
     open Storage_skeleton.SR
     let list = list
+    let stat ctx ~dbg ~sr =
+      let sr = Attached_srs.get sr in
+      let x = Statvfs.statvfs sr.path in
+      let total_space = Int64.mul x.Statvfs.f_blocks x.Statvfs.f_frsize in
+      let free_space = Int64.mul x.Statvfs.f_bavail x.Statvfs.f_bsize in
+      { total_space; free_space }
+
     let scan ctx ~dbg ~sr =
        let sr = Attached_srs.get sr in
        if not(Sys.file_exists sr.path)
