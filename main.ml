@@ -22,6 +22,18 @@ let resources = [
     essential = true;
     path = Losetup.losetup;
     perms = [ Unix.X_OK ];
+  }; {
+    Xcp_service.name = "mount";
+    description = "used to mount remote filesystems";
+    essential = true;
+    path = Mount.mount_cmd;
+    perms = [ Unix.X_OK ];
+  }; {
+    Xcp_service.name = "umount";
+    description = "used to unmount remote filesystems";
+    essential = true;
+    path = Mount.umount_cmd;
+    perms = [ Unix.X_OK ];
   }
 ]
 
@@ -41,6 +53,7 @@ let options = [
   "socket-path", Arg.Set_string socket_path, (fun () -> !socket_path), "Path of listening socket";
   "queue-name", Arg.String (fun x -> queues := csv x), (fun () -> String.concat "," !queues), "Comma-separated list of queue names to listen on";
   "default-format", Arg.String Server.set_default_format, Server.get_default_format, "Default format for disk files";
+  "sr-mount-path", Arg.Set_string Server.mount_path, (fun () -> !Server.mount_path), "Default mountpoint for mounting remote filesystems";
 ]
 
 let main () =

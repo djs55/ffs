@@ -32,9 +32,11 @@ let features = [
   "VDI_CLONE", 0L;
 ]
 let _path = "path"
+let _location = "location"
 let _format = "format"
 let configuration = [
-   _path, "path in the filesystem to store images and metadata";
+   _path, "path to store images and metadata";
+   _location, "remote path to store images and metadata (use server:path)";
    _format, "default format for disks (either 'vhd' or 'raw')";
 ]
 let _type = "type" (* in sm-config *)
@@ -44,6 +46,7 @@ let vhd_ext = "vhd"
 let json_ext = "json"
 let readme_ext = "readme"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s.%s" name json_ext
+let mount_path = ref "/var/run/sr-mount"
 let device_ext = "device"
 
 let dot_regexp = Re_str.regexp_string "."
@@ -51,9 +54,12 @@ let extension x = match Re_str.split_delim dot_regexp x with
   | [] -> ""
   | x -> List.hd (List.rev x)
 
+let colon_regexp = Re_str.regexp_string ":"
+
 type sr = {
   sr: string;
   path: string;
+  is_mounted: bool;
   format: format;
 } with rpc
 type srs = (string * sr) list with rpc
@@ -468,15 +474,43 @@ module Implementation = struct
     let destroy = destroy
     let reset = reset
     let detach ctx ~dbg ~sr =
+       begin
+         try
+           let sr = Attached_srs.get sr in
+           if sr.is_mounted then Mount.umount sr.path
+         with
+         | Sr_not_attached _ -> ()
+         | e ->
+           error "Failed to umount %s: mountpoint may have leaked" sr;
+       end;
        Attached_srs.remove sr
     let attach ctx ~dbg ~sr ~device_config =
-       if not(List.mem_assoc _path device_config) then begin
+       let has_path = List.mem_assoc _path device_config in
+       let has_location = List.mem_assoc _location device_config in
+       if not has_path && (not has_location) then begin
            error "Required device_config:path not present";
            raise (Missing_configuration_parameter _path);
        end;
-       let path = List.assoc _path device_config in
        let format = format_of_kvpairs _format !default_format device_config in
-       Attached_srs.put sr { sr; path; format }
+       let path =
+         if has_path then List.assoc _path device_config
+         else if has_location then List.assoc _location device_config
+         else assert false in
+       (* If 'path' is of the form server:path, then we perform a mount *)
+       match Re_str.bounded_split_delim colon_regexp path 2 with
+       | [ _ ] ->
+         let is_mounted = false in
+         Attached_srs.put sr { sr; path; is_mounted; format }
+       | [ _; _ ] ->
+         (* mount remote_host *)
+         let local_path = Filename.concat !mount_path sr in
+         mkdir_rec local_path 0o0755;
+         Mount.mount path local_path;
+         let is_mounted = true in
+         Attached_srs.put sr { sr; path = local_path; is_mounted; format }
+       | _ ->
+         error "Failed to parse device_config parameter: %s (expected either <path> or <server>:<path>)" path;
+         failwith "expected <path> or <server>:<path>" 
     let create ctx ~dbg ~sr ~device_config ~physical_size =
        (* attach will validate the device_config parameters *)
        attach ctx ~dbg ~sr ~device_config;
