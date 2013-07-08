@@ -30,6 +30,7 @@ let features = [
   "VDI_DEACTIVATE", 0L;
   "VDI_SNAPSHOT", 0L;
   "VDI_CLONE", 0L;
+  "VDI_RESIZE", 0L;
 ]
 let _path = "path"
 let _location = "location"
@@ -404,6 +405,25 @@ module Implementation = struct
 
     let snapshot = snapshot_clone_common true
     let clone = snapshot_clone_common false
+
+    let resize ctx ~dbg ~sr ~vdi ~new_size =
+      info "VDI.resize %s %s %Ld" sr vdi new_size;
+      let sr = Attached_srs.get sr in
+      let vdi_path = vdi_path_of sr vdi in
+      let md_path = md_path_of sr vdi in
+      match vdi_info_of_path vdi_path with
+      | None ->
+        raise (Vdi_does_not_exist vdi);
+      | Some vdi_info ->
+        begin match vdi_format_of sr vdi with
+        | Raw ->
+          raise (Unimplemented "raw resize not currently implemented")
+        | Vhd ->
+          let new_size = Vhdformat.resize vdi_path new_size in
+          let vdi_info = { vdi_info with virtual_size = new_size } in
+          file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
+          new_size        
+        end
 
     let stat ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in

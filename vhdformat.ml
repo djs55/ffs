@@ -89,3 +89,11 @@ let is_hidden path =
 let set_hidden path =
   with_vhd path [ Vhd.Open_rdwr ]
     (fun vhd -> Vhd.set_hidden vhd 1)
+
+let resize path new_virtual_size =
+  let new_virtual_size = roundup new_virtual_size two_mib in
+  if new_virtual_size > max_size
+  then failwith ("vhd resize request exceeds maximum");
+  with_vhd path [ Vhd.Open_rdwr ]
+    (fun vhd -> Vhd.set_virt_size vhd new_virtual_size);
+  new_virtual_size
