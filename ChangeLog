@@ -1,3 +1,6 @@
+0.9.13 (8-Jul-2013):
+* support VDI.resize for .vhds
+
 0.9.12 (6-Jul-2013):
 * support remote filesystems (for .isos)
 
