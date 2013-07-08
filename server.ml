@@ -374,7 +374,7 @@ module Implementation = struct
 
       rm_f (md_path_of sr vdi)
 
-    let clone ctx ~dbg ~sr ~vdi_info =
+    let snapshot_clone_common is_a_snapshot ctx ~dbg ~sr ~vdi_info =
       let sr = Attached_srs.get sr in
       let vdi = vdi_info.vdi in
       let vdi_path = vdi_path_of sr vdi in
@@ -392,11 +392,18 @@ module Implementation = struct
       let snapshot = choose_filename sr vdi_info in
       Vhdformat.snapshot (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
       Vhd_tree_node.(write sr base { children = [ vdi; snapshot ] });
-      let vdi_info = { vdi_info with vdi = snapshot } in
+      let vdi_info = { vdi_info with
+        vdi = snapshot;
+        is_a_snapshot;
+        snapshot_of = if is_a_snapshot then vdi else "";
+        (* TODO: snapshot_time *)
+        sm_config = [ _type, string_of_format Vhd ];
+      } in
       file_of_string (md_path_of sr snapshot) (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
-    let snapshot = clone
+    let snapshot = snapshot_clone_common true
+    let clone = snapshot_clone_common false
 
     let stat ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
