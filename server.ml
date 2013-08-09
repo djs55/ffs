@@ -330,17 +330,14 @@ module Implementation = struct
       | None ->
         raise (Vdi_does_not_exist vdi);
       | Some vdi_info ->
-        begin match vdi_format_of sr vdi with
-        | Raw ->
-          raise (Unimplemented "raw resize not currently implemented")
-        | Vhd ->
-          let new_size = Vhdformat.resize vdi_path new_size in
-          let vdi_info = { vdi_info with virtual_size = new_size } in
-          file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
-          new_size
-        | Qcow2 ->
-          raise (Unimplemented "qcow2 resize not currently implemented")
-        end
+        let resize_fn = match vdi_format_of sr vdi with
+        | Raw -> fun _ _ -> raise (Unimplemented "raw resize not currently implemented")
+        | Vhd -> Vhdformat.resize
+        | Qcow2 -> fun path new_size -> Qemu.resize path new_size in
+        let new_size = resize_fn vdi_path new_size in
+        let vdi_info = { vdi_info with virtual_size = new_size } in
+        file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
+        new_size
 
     let stat ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in

@@ -28,11 +28,14 @@ let maximum_size = 9223372036854774784L
 
 let minimum_size = 0L
 
+let check_size proposed_size =
+  if proposed_size < minimum_size or proposed_size > maximum_size then begin
+    error "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" (div proposed_size mib) (div minimum_size mib) (div maximum_size mib);
+    raise (Storage_interface.Backend_error("VDI_SIZE", [ to_string proposed_size; to_string minimum_size; to_string (div maximum_size mib) ]))
+  end
+
 let create ?options ?(format=qcow2) path size =
-  if size < minimum_size or size > maximum_size then begin
-    error "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" (div size mib) (div minimum_size mib) (div maximum_size mib);
-    raise (Storage_interface.Backend_error("VDI_SIZE", [ to_string size; to_string minimum_size; to_string (div maximum_size mib) ]))
-  end;
+  check_size size;
   let options = match options with
     | None -> []
     | Some x -> [ "-o"; x ] in
@@ -42,6 +45,12 @@ let create ?options ?(format=qcow2) path size =
 
 let snapshot leaf_path parent_path parent_format virtual_size =
   create ~options:("backing_file=" ^ parent_path) leaf_path virtual_size 
+
+let resize ?(format=qcow2) path new_virtual_size =
+  check_size new_virtual_size;
+  let args = [ "resize"; "-f"; format; path; Int64.to_string new_virtual_size ] in
+  let (_: string) = run !qemu_img args in
+  new_virtual_size
 
 let newline_regex = Re_str.regexp_string "\n"
 let colon_regex = Re_str.regexp ":[ ]*"
