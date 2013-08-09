@@ -1,3 +1,6 @@
+0.9.14 (9-Aug-2013):
+* support .qcow2 via qemu-img
+
 0.9.13 (8-Jul-2013):
 * support VDI.resize for .vhds
 

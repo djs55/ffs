@@ -29,7 +29,10 @@ let create vdi_path virtual_size =
 let destroy vdi_path =
   try Unix.unlink vdi_path with _ -> ()
 
-let attach = Losetup.add
+let attach path read_write = {
+  Storage_interface.params = Losetup.add path read_write;
+  xenstore_data = []
+}
 
 let detach = Losetup.remove_by_device
 
