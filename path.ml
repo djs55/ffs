@@ -16,6 +16,7 @@ open Unix
 
 let essentials = [
   X_OK, "losetup", Losetup.losetup, "path to the losetup binary";
+  X_OK, "qemu-img", Qemu.qemu_img, "path to the qemu-img binary";
 ]
 
 let nonessentials = [

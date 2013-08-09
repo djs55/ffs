@@ -21,6 +21,9 @@ let description = "Flat File Storage Repository for XCP"
 let vendor = "Citrix"
 let copyright = "Citrix Inc"
 let required_api_version = "2.0"
+
+let supported_formats = [ Vhd; Raw; Qcow2 ]
+
 let features = [
   "VDI_CREATE", 0L;
   "VDI_DELETE", 0L;
@@ -30,22 +33,18 @@ let features = [
   "VDI_DEACTIVATE", 0L;
   "VDI_SNAPSHOT", 0L;
   "VDI_CLONE", 0L;
-  "VDI_RESIZE", 0L;
-]
+  "VDI_RESIZE", 0L
+] @ (List.map (fun x -> Printf.sprintf "FORMAT_%s" (String.uppercase (string_of_format x)), 0L) supported_formats)
 let _path = "path"
 let _location = "location"
 let _format = "format"
 let configuration = [
    _path, "path to store images and metadata";
    _location, "remote path to store images and metadata (use server:path)";
-   _format, "default format for disks (either 'vhd' or 'raw')";
+   _format, Printf.sprintf "default format for disks (one of %s)" (String.concat ", " (List.map string_of_format supported_formats));
 ]
 let _type = "type" (* in sm-config *)
 
-let iso_ext = "iso"
-let vhd_ext = "vhd"
-let json_ext = "json"
-let readme_ext = "readme"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s.%s" name json_ext
 let mount_path = ref "/var/run/sr-mount"
 let device_ext = "device"
@@ -57,26 +56,9 @@ let extension x = match Re_str.split_delim dot_regexp x with
 
 let colon_regexp = Re_str.regexp_string ":"
 
-type sr = {
-  sr: string;
-  path: string;
-  is_mounted: bool;
-  format: format;
-} with rpc
 type srs = (string * sr) list with rpc
 
 open Storage_interface
-
-let format_of_string x = match String.lowercase x with
-  | "vhd" -> Some Vhd
-  | "raw" -> Some Raw
-  | y ->
-    warn "Unknown disk format requested %s (possible values are 'vhd' and 'raw')" y;
-    None
-
-let string_of_format = function
-  | Vhd -> "vhd"
-  | Raw -> "raw"
 
 let default_format = ref Vhd
 
@@ -164,9 +146,6 @@ module Implementation = struct
     let set_content_id = set_content_id
     let get_by_name = get_by_name
 
-    let vdi_path_of sr vdi =
-        Filename.concat sr.path vdi
-
     let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s.%s" name sr.sr vdi device_ext
 
     let md_path_of sr vdi =
@@ -189,6 +168,7 @@ module Implementation = struct
           let ext_format = [
             iso_ext, Raw;
             vhd_ext, Vhd;
+            qcow2_ext, Qcow2;
           ] in
 
           (* We hide any .vhd which is marked as 'hidden' OR for which we
@@ -283,83 +263,11 @@ module Implementation = struct
       begin match format with
       | Vhd -> Vhdformat.create vdi_path vdi_info.virtual_size
       | Raw -> Sparse.create vdi_path vdi_info.virtual_size
+      | Qcow2 -> Qemu.create vdi_path vdi_info.virtual_size
       end;
       debug "VDI.create %s -> %s (%Ld)" vdi_info.name_label vdi_path vdi_info.virtual_size;  
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
-
-    module Vhd_tree_node = struct
-      type t = {
-        children: string list;
-      } with rpc
-
-      let marker = "Machine readable data follows - DO NOT EDIT\n"
-      let marker_regex = Re_str.regexp_string marker
-
-      let filename sr name = Filename.concat sr.path name ^ "." ^ readme_ext
-      let read sr name =
-        let txt = string_of_file (filename sr name) in
-        match Re_str.bounded_split_delim marker_regex txt 2 with
-        | [ _; x ] -> Some (t_of_rpc (Jsonrpc.of_string x))
-        | _ -> None
-       
-      let write sr name t =
-        let vhd_filename = vdi_path_of sr name in
-        let preamble = [
-          "Warning";
-          "=======";
-          Printf.sprintf "The file %s is a link in a chain of vhd files; it contains some" vhd_filename;
-          "of the disk blocks needed to reconstruct the virtual disk.";
-          "";
-          Printf.sprintf "DO NOT delete %s unless you are SURE it is nolonger referenced by" vhd_filename;
-          "any other vhd files. The system will automatically delete the file when it is";
-          "nolonger needed.";
-          "";
-          "Explanation of the data below";
-          "-----------------------------";
-          "The machine-readable data below lists the vhd files which depend on this one.";
-          "When all these files are deleted it should be safe to delete this file.";
-        ] in
-        let txt = String.concat "" (List.map (fun x -> x ^ "\n") preamble) ^ marker ^ (Jsonrpc.to_string (rpc_of_t t)) in
-        file_of_string (filename sr name) txt
-
-      let rec rm sr name =
-          let vhd_filename = vdi_path_of sr name in
-          begin match Vhdformat.get_parent vhd_filename with
-          | Some parent ->
-            begin match read sr parent with
-            | None ->
-              error "vhd node %s has no associated metadata -- I can't risk deleting it" parent
-            | Some t ->
-              let children = List.filter (fun x -> x <> name) t.children in
-              if children = [] then begin
-                info "vhd node %s has no children: deleting" parent;
-                rm sr parent
-              end else begin
-                info "vhd node %s now has children: [ %s ]" parent (String.concat "; " children);
-                write sr parent { children }
-              end
-            end
-          | None -> ()
-          end;
-          rm_f vhd_filename;
-          rm_f (vhd_filename ^ "." ^ readme_ext)
-
-      let rename sr src dst =
-        let vhd_filename = vdi_path_of sr src in
-        begin match Vhdformat.get_parent vhd_filename with
-        | Some parent ->
-          begin match read sr parent with
-          | None ->
-            error "vhd node %s has no associated metadata -- I can't risk manipulating it" parent;
-            failwith "vhd metadata integrity check failed"
-          | Some t ->
-            let children = dst :: (List.filter (fun x -> x <> src) t.children) in
-            write sr parent { children }
-          end
-        | None -> ()
-        end
-    end
 
     let destroy ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
@@ -368,8 +276,9 @@ module Implementation = struct
       then raise (Vdi_does_not_exist vdi);
 
       debug "VDI.destroy %s" vdi;
-      begin match vdi_format_of sr vdi with
-      | Vhd -> Vhd_tree_node.rm sr vdi
+      let format = vdi_format_of sr vdi in
+      begin match format with
+      | Vhd | Qcow2 -> Disk_tree.rm format sr vdi
       | Raw -> Sparse.destroy vdi_path
       end;
 
@@ -382,23 +291,29 @@ module Implementation = struct
       let md_path = md_path_of sr vdi in
       if not(Sys.file_exists vdi_path) && not(Sys.file_exists md_path)
       then raise (Vdi_does_not_exist vdi);
-      info "VDI.clone %s" vdi;
       let format = vdi_format_of sr vdi in
+      info "VDI.clone %s (format = %s)" vdi (string_of_format format);
+      let snapshot_fn, leaf_type = match format with
+      | Vhd | Raw ->
+        Vhdformat.snapshot, Vhd
+      | Qcow2 ->
+        Qemu.snapshot, Qcow2 in
+
       let base = choose_filename sr vdi_info in
       (* TODO: stop renaming because it causes problems on NFS *)
       info "rename %s -> %s" vdi_path (vdi_path_of sr base);
-      Vhd_tree_node.rename sr vdi base;
+      Disk_tree.rename format sr vdi base;
       Unix.rename vdi_path (vdi_path_of sr base);
-      Vhdformat.snapshot vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
+      snapshot_fn vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
       let snapshot = choose_filename sr vdi_info in
-      Vhdformat.snapshot (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
-      Vhd_tree_node.(write sr base { children = [ vdi; snapshot ] });
+      snapshot_fn (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
+      Disk_tree.(write sr base { children = [ vdi; snapshot ] });
       let vdi_info = { vdi_info with
         vdi = snapshot;
         is_a_snapshot;
         snapshot_of = if is_a_snapshot then vdi else "";
         (* TODO: snapshot_time *)
-        sm_config = [ _type, string_of_format Vhd ];
+        sm_config = [ _type, string_of_format leaf_type ];
       } in
       file_of_string (md_path_of sr snapshot) (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
@@ -415,15 +330,14 @@ module Implementation = struct
       | None ->
         raise (Vdi_does_not_exist vdi);
       | Some vdi_info ->
-        begin match vdi_format_of sr vdi with
-        | Raw ->
-          raise (Unimplemented "raw resize not currently implemented")
-        | Vhd ->
-          let new_size = Vhdformat.resize vdi_path new_size in
-          let vdi_info = { vdi_info with virtual_size = new_size } in
-          file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
-          new_size        
-        end
+        let resize_fn = match vdi_format_of sr vdi with
+        | Raw -> fun _ _ -> raise (Unimplemented "raw resize not currently implemented")
+        | Vhd -> Vhdformat.resize
+        | Qcow2 -> fun path new_size -> Qemu.resize path new_size in
+        let new_size = resize_fn vdi_path new_size in
+        let vdi_info = { vdi_info with virtual_size = new_size } in
+        file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
+        new_size
 
     let stat ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
@@ -433,17 +347,16 @@ module Implementation = struct
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
       let sr = Attached_srs.get sr in
       let vdi_path = vdi_path_of sr vdi in
-      let device = match vdi_format_of sr vdi with
+      let attach_info = match vdi_format_of sr vdi with
       | Vhd -> Vhdformat.attach vdi_path read_write
       | Raw -> Sparse.attach vdi_path read_write
+      | Qcow2 -> Qemu.attach vdi_path read_write
       in
       let symlink = device_path_of sr vdi in
       mkdir_rec (Filename.dirname symlink) 0o700;
-      Unix.symlink device symlink;
-      {
-        params = device;
-        xenstore_data = []
-      }
+      Unix.symlink attach_info.params symlink;
+      attach_info
+
     let detach ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
       let symlink = device_path_of sr vdi in
@@ -455,6 +368,7 @@ module Implementation = struct
         match vdi_format_of sr vdi with
         | Vhd -> Vhdformat.detach device
         | Raw -> Sparse.detach device
+        | Qcow2 -> Qemu.detach device
       );
       rm_f symlink
     let activate ctx ~dbg ~dp ~sr ~vdi =
@@ -465,6 +379,7 @@ module Implementation = struct
       begin match vdi_format_of sr vdi with
       | Vhd -> Vhdformat.activate device path Tapctl.Vhd
       | Raw -> Sparse.activate device path
+      | Qcow2 -> Qemu.activate device path
       end
     let deactivate ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
@@ -473,6 +388,7 @@ module Implementation = struct
       begin match vdi_format_of sr vdi with
       | Vhd -> Vhdformat.deactivate device
       | Raw -> Sparse.deactivate device
+      | Qcow2 -> Qemu.deactivate device
       end
   end
   module SR = struct
@@ -518,6 +434,17 @@ module Implementation = struct
            error "Required device_config:path not present";
            raise (Missing_configuration_parameter _path);
        end;
+       (* Explicitly reject formats that we don't recognise *)
+       if List.mem_assoc _format device_config then begin
+         let format = List.assoc _format device_config in
+         match format_of_string format with
+         | None ->
+           error "The format '%s' is not supported. Try one of %s." format
+             (String.concat ", " (List.map string_of_format supported_formats));
+           raise (Unimplemented format)
+         | Some _ -> ()
+       end;
+         
        let format = format_of_kvpairs _format !default_format device_config in
        let path =
          if has_path then List.assoc _path device_config

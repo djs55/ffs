@@ -110,7 +110,35 @@ let retry_every n f =
 type format =
   | Vhd
   | Raw
+  | Qcow2
 with rpc
+
+let string_of_format = function
+  | Vhd -> "vhd"
+  | Raw -> "raw"
+  | Qcow2 -> "qcow2"
+
+let format_of_string x = match String.lowercase x with
+  | "vhd" -> Some Vhd
+  | "raw" -> Some Raw
+  | "qcow2" -> Some Qcow2
+  | y ->
+    None
+
+type sr = {
+  sr: string;
+  path: string;
+  is_mounted: bool;
+  format: format;
+} with rpc
+
+let iso_ext = "iso"
+let vhd_ext = "vhd"
+let qcow2_ext = "qcow2"
+let json_ext = "json"
+let readme_ext = "readme"
+
+let vdi_path_of sr vdi = Filename.concat sr.path vdi
 
 let run cmd args =
   let null = Unix.openfile "/dev/null" [ Unix.O_RDWR ] 0 in
