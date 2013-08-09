@@ -51,6 +51,7 @@ file format: qcow2
 virtual size: 8.0G (8589934592 bytes)
 disk size: 1.4M
 cluster_size: 65536
+backing file: name
 *)
 
 (* Result of a qemu-img info *)
@@ -59,6 +60,7 @@ type info = {
   virtual_size: int64;
   disk_size: int64;
   cluster_size: int64;
+  backing_file: string option;
 }
 
 (* keys in the qemu-img info output: *)
@@ -67,6 +69,7 @@ let _file_format = "file format"
 let _virtual_size = "virtual size"
 let _disk_size = "disk size"
 let _cluster_size = "cluster_size"
+let _backing_file = "backing file"
 
 let info ?(format=qcow2) path =
   let args = [ "info"; "-f"; format; path ] in
@@ -81,6 +84,10 @@ let info ?(format=qcow2) path =
     if not(List.mem_assoc key table)
     then failwith (Printf.sprintf "failed to find '%s' in qemu-img info output" key)
     else List.assoc key table in
+  let find_opt key =
+    if not(List.mem_assoc key table)
+    then None
+    else Some (List.assoc key table) in
   let parse_size size =
     let fragments = Re_str.split_delim space_regex size in
     match List.fold_left (fun best_guess x ->
@@ -109,7 +116,8 @@ let info ?(format=qcow2) path =
       format = find _file_format;
       virtual_size = parse_size (find _virtual_size);
       disk_size = parse_size (find _disk_size);
-      cluster_size = Int64.of_string (find _cluster_size)
+      cluster_size = Int64.of_string (find _cluster_size);
+      backing_file = find_opt _backing_file;
   }
 
 let destroy vdi_path =
