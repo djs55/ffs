@@ -347,18 +347,16 @@ module Implementation = struct
     let attach ctx ~dbg ~dp ~sr ~vdi ~read_write =
       let sr = Attached_srs.get sr in
       let vdi_path = vdi_path_of sr vdi in
-      let device = match vdi_format_of sr vdi with
+      let attach_info = match vdi_format_of sr vdi with
       | Vhd -> Vhdformat.attach vdi_path read_write
       | Raw -> Sparse.attach vdi_path read_write
       | Qcow2 -> Qemu.attach vdi_path read_write
       in
       let symlink = device_path_of sr vdi in
       mkdir_rec (Filename.dirname symlink) 0o700;
-      Unix.symlink device symlink;
-      {
-        params = device;
-        xenstore_data = []
-      }
+      Unix.symlink attach_info.params symlink;
+      attach_info
+
     let detach ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
       let symlink = device_path_of sr vdi in

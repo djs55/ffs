@@ -47,8 +47,10 @@ let attach _ _ =
   let minor = Tapctl.allocate (ctx ()) in
   let tid = Tapctl.spawn (ctx ()) in
   let dev = Tapctl.attach (ctx ()) tid minor in
-  let dest = Tapctl.devnode (ctx ()) (Tapctl.get_minor dev) in
-  dest
+  let dest = Tapctl.devnode (ctx ()) (Tapctl.get_minor dev) in {
+    params = dest;
+    xenstore_data = [];
+  }
 
 let activate dev file ty =
   let dev, _, _ = Tapctl.of_device (ctx ()) dev in

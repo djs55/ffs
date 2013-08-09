@@ -135,7 +135,10 @@ let info ?(format=qcow2) path =
 let destroy vdi_path =
   try Unix.unlink vdi_path with _ -> ()
 
-let attach vdi_path read_write = vdi_path
+let attach vdi_path read_write = {
+  Storage_interface.params = vdi_path;
+  xenstore_data = [ "format", "qcow2" ];
+}
 
 let detach device = ()
 
