@@ -24,18 +24,6 @@ let required_api_version = "2.0"
 
 let supported_formats = [ Vhd; Raw; Qcow2 ]
 
-let string_of_format = function
-  | Vhd -> "vhd"
-  | Raw -> "raw"
-  | Qcow2 -> "qcow2"
-
-let format_of_string x = match String.lowercase x with
-  | "vhd" -> Some Vhd
-  | "raw" -> Some Raw
-  | "qcow2" -> Some Qcow2
-  | y ->
-    None
-
 let features = [
   "VDI_CREATE", 0L;
   "VDI_DELETE", 0L;
@@ -57,11 +45,6 @@ let configuration = [
 ]
 let _type = "type" (* in sm-config *)
 
-let iso_ext = "iso"
-let vhd_ext = "vhd"
-let qcow2_ext = "qcow2"
-let json_ext = "json"
-let readme_ext = "readme"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s.%s" name json_ext
 let mount_path = ref "/var/run/sr-mount"
 let device_ext = "device"
@@ -73,12 +56,6 @@ let extension x = match Re_str.split_delim dot_regexp x with
 
 let colon_regexp = Re_str.regexp_string ":"
 
-type sr = {
-  sr: string;
-  path: string;
-  is_mounted: bool;
-  format: format;
-} with rpc
 type srs = (string * sr) list with rpc
 
 open Storage_interface
@@ -168,9 +145,6 @@ module Implementation = struct
     let remove_from_sm_config = remove_from_sm_config
     let set_content_id = set_content_id
     let get_by_name = get_by_name
-
-    let vdi_path_of sr vdi =
-        Filename.concat sr.path vdi
 
     let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s.%s" name sr.sr vdi device_ext
 
@@ -295,79 +269,6 @@ module Implementation = struct
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
       vdi_info
 
-    module Vhd_tree_node = struct
-      type t = {
-        children: string list;
-      } with rpc
-
-      let marker = "Machine readable data follows - DO NOT EDIT\n"
-      let marker_regex = Re_str.regexp_string marker
-
-      let filename sr name = Filename.concat sr.path name ^ "." ^ readme_ext
-      let read sr name =
-        let txt = string_of_file (filename sr name) in
-        match Re_str.bounded_split_delim marker_regex txt 2 with
-        | [ _; x ] -> Some (t_of_rpc (Jsonrpc.of_string x))
-        | _ -> None
-       
-      let write sr name t =
-        let vhd_filename = vdi_path_of sr name in
-        let preamble = [
-          "Warning";
-          "=======";
-          Printf.sprintf "The file %s is a link in a chain of vhd files; it contains some" vhd_filename;
-          "of the disk blocks needed to reconstruct the virtual disk.";
-          "";
-          Printf.sprintf "DO NOT delete %s unless you are SURE it is nolonger referenced by" vhd_filename;
-          "any other vhd files. The system will automatically delete the file when it is";
-          "nolonger needed.";
-          "";
-          "Explanation of the data below";
-          "-----------------------------";
-          "The machine-readable data below lists the vhd files which depend on this one.";
-          "When all these files are deleted it should be safe to delete this file.";
-        ] in
-        let txt = String.concat "" (List.map (fun x -> x ^ "\n") preamble) ^ marker ^ (Jsonrpc.to_string (rpc_of_t t)) in
-        file_of_string (filename sr name) txt
-
-      let rec rm sr name =
-          let vhd_filename = vdi_path_of sr name in
-          begin match Vhdformat.get_parent vhd_filename with
-          | Some parent ->
-            begin match read sr parent with
-            | None ->
-              error "vhd node %s has no associated metadata -- I can't risk deleting it" parent
-            | Some t ->
-              let children = List.filter (fun x -> x <> name) t.children in
-              if children = [] then begin
-                info "vhd node %s has no children: deleting" parent;
-                rm sr parent
-              end else begin
-                info "vhd node %s now has children: [ %s ]" parent (String.concat "; " children);
-                write sr parent { children }
-              end
-            end
-          | None -> ()
-          end;
-          rm_f vhd_filename;
-          rm_f (vhd_filename ^ "." ^ readme_ext)
-
-      let rename sr src dst =
-        let vhd_filename = vdi_path_of sr src in
-        begin match Vhdformat.get_parent vhd_filename with
-        | Some parent ->
-          begin match read sr parent with
-          | None ->
-            error "vhd node %s has no associated metadata -- I can't risk manipulating it" parent;
-            failwith "vhd metadata integrity check failed"
-          | Some t ->
-            let children = dst :: (List.filter (fun x -> x <> src) t.children) in
-            write sr parent { children }
-          end
-        | None -> ()
-        end
-    end
-
     let destroy ctx ~dbg ~sr ~vdi =
       let sr = Attached_srs.get sr in
       let vdi_path = vdi_path_of sr vdi in
@@ -376,7 +277,7 @@ module Implementation = struct
 
       debug "VDI.destroy %s" vdi;
       begin match vdi_format_of sr vdi with
-      | Vhd -> Vhd_tree_node.rm sr vdi
+      | Vhd -> Disk_tree.rm sr vdi
       | Raw -> Sparse.destroy vdi_path
       | Qcow2 -> Qemu.destroy vdi_path
       end;
@@ -398,12 +299,12 @@ module Implementation = struct
       let base = choose_filename sr vdi_info in
       (* TODO: stop renaming because it causes problems on NFS *)
       info "rename %s -> %s" vdi_path (vdi_path_of sr base);
-      Vhd_tree_node.rename sr vdi base;
+      Disk_tree.rename sr vdi base;
       Unix.rename vdi_path (vdi_path_of sr base);
       Vhdformat.snapshot vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
       let snapshot = choose_filename sr vdi_info in
       Vhdformat.snapshot (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
-      Vhd_tree_node.(write sr base { children = [ vdi; snapshot ] });
+      Disk_tree.(write sr base { children = [ vdi; snapshot ] });
       let vdi_info = { vdi_info with
         vdi = snapshot;
         is_a_snapshot;
