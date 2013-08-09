@@ -21,6 +21,14 @@ let description = "Flat File Storage Repository for XCP"
 let vendor = "Citrix"
 let copyright = "Citrix Inc"
 let required_api_version = "2.0"
+
+let supported_formats = [ Vhd; Raw; Qcow2 ]
+
+let string_of_format = function
+  | Vhd -> "vhd"
+  | Raw -> "raw"
+  | Qcow2 -> "qcow2"
+
 let features = [
   "VDI_CREATE", 0L;
   "VDI_DELETE", 0L;
@@ -30,18 +38,15 @@ let features = [
   "VDI_DEACTIVATE", 0L;
   "VDI_SNAPSHOT", 0L;
   "VDI_CLONE", 0L;
-  "VDI_RESIZE", 0L;
-  "FORMAT_VHD", 0L;
-  "FORMAT_RAW", 0L;
-  "FORMAT_QCOW2", 0L;
-]
+  "VDI_RESIZE", 0L
+] @ (List.map (fun x -> Printf.sprintf "FORMAT_%s" (String.uppercase (string_of_format x)), 0L) supported_formats)
 let _path = "path"
 let _location = "location"
 let _format = "format"
 let configuration = [
    _path, "path to store images and metadata";
    _location, "remote path to store images and metadata (use server:path)";
-   _format, "default format for disks (either 'vhd' or 'raw')";
+   _format, Printf.sprintf "default format for disks (one of %s)" (String.concat ", " (List.map string_of_format supported_formats));
 ]
 let _type = "type" (* in sm-config *)
 
@@ -78,11 +83,6 @@ let format_of_string x = match String.lowercase x with
   | y ->
     warn "Unknown disk format requested %s (possible values are 'vhd' and 'raw')" y;
     None
-
-let string_of_format = function
-  | Vhd -> "vhd"
-  | Raw -> "raw"
-  | Qcow2 -> "qcow2"
 
 let default_format = ref Vhd
 
