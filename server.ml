@@ -29,6 +29,13 @@ let string_of_format = function
   | Raw -> "raw"
   | Qcow2 -> "qcow2"
 
+let format_of_string x = match String.lowercase x with
+  | "vhd" -> Some Vhd
+  | "raw" -> Some Raw
+  | "qcow2" -> Some Qcow2
+  | y ->
+    None
+
 let features = [
   "VDI_CREATE", 0L;
   "VDI_DELETE", 0L;
@@ -75,14 +82,6 @@ type sr = {
 type srs = (string * sr) list with rpc
 
 open Storage_interface
-
-let format_of_string x = match String.lowercase x with
-  | "vhd" -> Some Vhd
-  | "raw" -> Some Raw
-  | "qcow2" -> Some Qcow2
-  | y ->
-    warn "Unknown disk format requested %s (possible values are 'vhd' and 'raw')" y;
-    None
 
 let default_format = ref Vhd
 
@@ -536,6 +535,17 @@ module Implementation = struct
            error "Required device_config:path not present";
            raise (Missing_configuration_parameter _path);
        end;
+       (* Explicitly reject formats that we don't recognise *)
+       if List.mem_assoc _format device_config then begin
+         let format = List.assoc _format device_config in
+         match format_of_string format with
+         | None ->
+           error "The format '%s' is not supported. Try one of %s." format
+             (String.concat ", " (List.map string_of_format supported_formats));
+           raise (Unimplemented format)
+         | Some _ -> ()
+       end;
+         
        let format = format_of_kvpairs _format !default_format device_config in
        let path =
          if has_path then List.assoc _path device_config
