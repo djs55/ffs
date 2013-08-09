@@ -110,6 +110,7 @@ let retry_every n f =
 type format =
   | Vhd
   | Raw
+  | Qcow2
 with rpc
 
 let run cmd args =

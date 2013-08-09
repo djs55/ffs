@@ -31,6 +31,9 @@ let features = [
   "VDI_SNAPSHOT", 0L;
   "VDI_CLONE", 0L;
   "VDI_RESIZE", 0L;
+  "FORMAT_VHD", 0L;
+  "FORMAT_RAW", 0L;
+  "FORMAT_QCOW2", 0L;
 ]
 let _path = "path"
 let _location = "location"
@@ -44,6 +47,7 @@ let _type = "type" (* in sm-config *)
 
 let iso_ext = "iso"
 let vhd_ext = "vhd"
+let qcow2_ext = "qcow2"
 let json_ext = "json"
 let readme_ext = "readme"
 let state_path = Printf.sprintf "/var/run/nonpersistent/%s.%s" name json_ext
@@ -70,6 +74,7 @@ open Storage_interface
 let format_of_string x = match String.lowercase x with
   | "vhd" -> Some Vhd
   | "raw" -> Some Raw
+  | "qcow2" -> Some Qcow2
   | y ->
     warn "Unknown disk format requested %s (possible values are 'vhd' and 'raw')" y;
     None
@@ -77,6 +82,7 @@ let format_of_string x = match String.lowercase x with
 let string_of_format = function
   | Vhd -> "vhd"
   | Raw -> "raw"
+  | Qcow2 -> "qcow2"
 
 let default_format = ref Vhd
 
@@ -189,6 +195,7 @@ module Implementation = struct
           let ext_format = [
             iso_ext, Raw;
             vhd_ext, Vhd;
+            qcow2_ext, Qcow2;
           ] in
 
           (* We hide any .vhd which is marked as 'hidden' OR for which we
@@ -283,6 +290,7 @@ module Implementation = struct
       begin match format with
       | Vhd -> Vhdformat.create vdi_path vdi_info.virtual_size
       | Raw -> Sparse.create vdi_path vdi_info.virtual_size
+      | Qcow2 -> Qemu.create vdi_path vdi_info.virtual_size
       end;
       debug "VDI.create %s -> %s (%Ld)" vdi_info.name_label vdi_path vdi_info.virtual_size;  
       file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
@@ -371,6 +379,7 @@ module Implementation = struct
       begin match vdi_format_of sr vdi with
       | Vhd -> Vhd_tree_node.rm sr vdi
       | Raw -> Sparse.destroy vdi_path
+      | Qcow2 -> Qemu.destroy vdi_path
       end;
 
       rm_f (md_path_of sr vdi)
@@ -384,6 +393,9 @@ module Implementation = struct
       then raise (Vdi_does_not_exist vdi);
       info "VDI.clone %s" vdi;
       let format = vdi_format_of sr vdi in
+
+      if format = Qcow2 then raise (Unimplemented "qcow2 snapshot and clone");
+
       let base = choose_filename sr vdi_info in
       (* TODO: stop renaming because it causes problems on NFS *)
       info "rename %s -> %s" vdi_path (vdi_path_of sr base);
@@ -422,7 +434,9 @@ module Implementation = struct
           let new_size = Vhdformat.resize vdi_path new_size in
           let vdi_info = { vdi_info with virtual_size = new_size } in
           file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info));
-          new_size        
+          new_size
+        | Qcow2 ->
+          raise (Unimplemented "qcow2 resize not currently implemented")
         end
 
     let stat ctx ~dbg ~sr ~vdi =
@@ -436,6 +450,7 @@ module Implementation = struct
       let device = match vdi_format_of sr vdi with
       | Vhd -> Vhdformat.attach vdi_path read_write
       | Raw -> Sparse.attach vdi_path read_write
+      | Qcow2 -> Qemu.attach vdi_path read_write
       in
       let symlink = device_path_of sr vdi in
       mkdir_rec (Filename.dirname symlink) 0o700;
@@ -455,6 +470,7 @@ module Implementation = struct
         match vdi_format_of sr vdi with
         | Vhd -> Vhdformat.detach device
         | Raw -> Sparse.detach device
+        | Qcow2 -> Qemu.detach device
       );
       rm_f symlink
     let activate ctx ~dbg ~dp ~sr ~vdi =
@@ -465,6 +481,7 @@ module Implementation = struct
       begin match vdi_format_of sr vdi with
       | Vhd -> Vhdformat.activate device path Tapctl.Vhd
       | Raw -> Sparse.activate device path
+      | Qcow2 -> Qemu.activate device path
       end
     let deactivate ctx ~dbg ~dp ~sr ~vdi =
       let sr = Attached_srs.get sr in
@@ -473,6 +490,7 @@ module Implementation = struct
       begin match vdi_format_of sr vdi with
       | Vhd -> Vhdformat.deactivate device
       | Raw -> Sparse.deactivate device
+      | Qcow2 -> Qemu.deactivate device
       end
   end
   module SR = struct

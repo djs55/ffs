@@ -12,7 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 
-(* open Common *)
+open Common
 open Int64
 
 let qemu_img = ref "/usr/bin/qemu-img"
@@ -98,4 +98,14 @@ let info ?(format=qcow2) path =
       disk_size = parse_size (find _disk_size);
       cluster_size = Int64.of_string (find _cluster_size)
   }
+
+let destroy vdi_path =
+  try Unix.unlink vdi_path with _ -> ()
+
+let attach vdi_path read_write = vdi_path
+
+let detach device = ()
+
+let activate _ _ = ()
+let deactivate _ = ()
 
