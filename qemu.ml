@@ -19,7 +19,20 @@ let qemu_img = ref "/usr/bin/qemu-img"
 
 let qcow2 = "qcow2"
 
+let kib = 1024L
+let mib = mul kib kib
+let gib = mul kib mib
+
+(* See RWMJ's blog: http://rwmj.wordpress.com/2011/10/03/maximum-qcow2-disk-size/ *)
+let maximum_size = 9223372036854774784L
+
+let minimum_size = 0L
+
 let create ?options ?(format=qcow2) path size =
+  if size < minimum_size or size > maximum_size then begin
+    error "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" (div size mib) (div minimum_size mib) (div maximum_size mib);
+    raise (Storage_interface.Backend_error("VDI_SIZE", [ to_string size; to_string minimum_size; to_string (div maximum_size mib) ]))
+  end;
   let options = match options with
     | None -> []
     | Some x -> [ "-o"; x ] in
