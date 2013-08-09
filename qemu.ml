@@ -40,6 +40,9 @@ let create ?options ?(format=qcow2) path size =
   let (_: string) = run !qemu_img args in
   ()
 
+let snapshot leaf_path parent_path parent_format virtual_size =
+  create ~options:("backing_file=" ^ parent_path) leaf_path virtual_size 
+
 let newline_regex = Re_str.regexp_string "\n"
 let colon_regex = Re_str.regexp ":[ ]*"
 let space_regex = Re_str.regexp_string " "
@@ -129,4 +132,5 @@ let detach device = ()
 
 let activate _ _ = ()
 let deactivate _ = ()
+
 

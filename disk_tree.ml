@@ -49,9 +49,20 @@ let write sr name t =
   let txt = String.concat "" (List.map (fun x -> x ^ "\n") preamble) ^ marker ^ (Jsonrpc.to_string (rpc_of_t t)) in
   file_of_string (filename sr name) txt
 
-let rec rm sr name =
+let get_parent format image_filename =
+  match format with
+  | Vhd -> Vhdformat.get_parent image_filename
+  | Qcow2 ->
+    let info = Qemu.info image_filename in
+    begin match info.Qemu.backing_file with
+    | None -> None
+    | Some x -> Some (Filename.basename x)
+    end
+  | Raw -> None
+
+let rec rm format sr name =
   let image_filename = vdi_path_of sr name in
-  begin match Vhdformat.get_parent image_filename with
+  begin match get_parent format image_filename with
   | Some parent ->
     begin match read sr parent with
       | None ->
@@ -60,7 +71,7 @@ let rec rm sr name =
         let children = List.filter (fun x -> x <> name) t.children in
         if children = [] then begin
           info "image node %s has no children: deleting" parent;
-          rm sr parent
+          rm format sr parent
         end else begin
           info "image node %s now has children: [ %s ]" parent (String.concat "; " children);
           write sr parent { children }
@@ -71,9 +82,9 @@ let rec rm sr name =
   rm_f image_filename;
   rm_f (image_filename ^ "." ^ readme_ext)
 
-let rename sr src dst =
+let rename format sr src dst =
   let image_filename = vdi_path_of sr src in
-  begin match Vhdformat.get_parent image_filename with
+  match get_parent format image_filename with
   | Some parent ->
     begin match read sr parent with
     | None ->
@@ -84,5 +95,4 @@ let rename sr src dst =
       write sr parent { children }
     end
   | None -> ()
-  end
 
