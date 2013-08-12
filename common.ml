@@ -141,6 +141,7 @@ let readme_ext = "readme"
 let vdi_path_of sr vdi = Filename.concat sr.path vdi
 
 let run cmd args =
+  debug "exec %s %s" cmd (String.concat " " args);
   let null = Unix.openfile "/dev/null" [ Unix.O_RDWR ] 0 in
   let to_close = ref [ null ] in
   let close fd =

@@ -293,6 +293,9 @@ module Implementation = struct
       then raise (Vdi_does_not_exist vdi);
       let format = vdi_format_of sr vdi in
       info "VDI.clone %s (format = %s)" vdi (string_of_format format);
+
+      let parent_vdi_info = vdi_info_of_rpc (Jsonrpc.of_string (string_of_file md_path)) in
+
       let snapshot_fn, leaf_type = match format with
       | Vhd | Raw ->
         Vhdformat.snapshot, Vhd
@@ -304,9 +307,9 @@ module Implementation = struct
       info "rename %s -> %s" vdi_path (vdi_path_of sr base);
       Disk_tree.rename format sr vdi base;
       Unix.rename vdi_path (vdi_path_of sr base);
-      snapshot_fn vdi_path (vdi_path_of sr base) format vdi_info.virtual_size;
+      snapshot_fn vdi_path (vdi_path_of sr base) format parent_vdi_info.virtual_size;
       let snapshot = choose_filename sr vdi_info in
-      snapshot_fn (vdi_path_of sr snapshot) (vdi_path_of sr base) format vdi_info.virtual_size;
+      snapshot_fn (vdi_path_of sr snapshot) (vdi_path_of sr base) format parent_vdi_info.virtual_size;
       Disk_tree.(write sr base { children = [ vdi; snapshot ] });
       let vdi_info = { vdi_info with
         vdi = snapshot;
