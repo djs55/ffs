@@ -17,7 +17,10 @@ open Int64
 
 let qemu_img = ref "/usr/bin/qemu-img"
 
-let qcow2 = "qcow2"
+let string_of_format = function
+  | Qcow2 -> "qcow2"
+  | Raw -> "raw"
+  | Vhd -> "vdi"
 
 let kib = 1024L
 let mib = mul kib kib
@@ -34,21 +37,21 @@ let check_size proposed_size =
     raise (Storage_interface.Backend_error("VDI_SIZE", [ to_string proposed_size; to_string minimum_size; to_string (div maximum_size mib) ]))
   end
 
-let create ?options ?(format=qcow2) path size =
+let create ?options ?(format=Qcow2) path size =
   check_size size;
   let options = match options with
     | None -> []
     | Some x -> [ "-o"; x ] in
-  let args = [ "create"; "-f"; format ] @ options @ [ path; Int64.to_string size ] in
+  let args = [ "create"; "-f"; string_of_format format ] @ options @ [ path; Int64.to_string size ] in
   let (_: string) = run !qemu_img args in
   ()
 
 let snapshot leaf_path parent_path parent_format virtual_size =
-  create ~options:("backing_file=" ^ parent_path) leaf_path virtual_size 
+  create ~options:("backing_file=" ^ parent_path ^ ",backing_fmt=" ^ (string_of_format parent_format)) leaf_path virtual_size 
 
-let resize ?(format=qcow2) path new_virtual_size =
+let resize ?(format=Qcow2) path new_virtual_size =
   check_size new_virtual_size;
-  let args = [ "resize"; "-f"; format; path; Int64.to_string new_virtual_size ] in
+  let args = [ "resize"; "-f"; string_of_format format; path; Int64.to_string new_virtual_size ] in
   let (_: string) = run !qemu_img args in
   new_virtual_size
 
@@ -83,8 +86,8 @@ let _disk_size = "disk size"
 let _cluster_size = "cluster_size"
 let _backing_file = "backing file"
 
-let info ?(format=qcow2) path =
-  let args = [ "info"; "-f"; format; path ] in
+let info ?(format=Qcow2) path =
+  let args = [ "info"; "-f"; string_of_format format; path ] in
   let result = run !qemu_img args in
   let lines = Re_str.split_delim newline_regex result in
   let table = List.concat (List.map (fun line ->
