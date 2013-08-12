@@ -1,3 +1,6 @@
+0.9.15 (12-Aug-2013):
+* fix .qcow2 snapshot and clone
+
 0.9.14 (9-Aug-2013):
 * support .qcow2 via qemu-img
 
