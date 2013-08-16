@@ -1,3 +1,6 @@
+0.9.16 (16-Aug-2013):
+* update to xcp-idl 0.9.11
+
 0.9.15 (12-Aug-2013):
 * fix .qcow2 snapshot and clone
 
