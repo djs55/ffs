@@ -25,16 +25,16 @@ let required_api_version = "2.0"
 let supported_formats = [ Vhd; Raw; Qcow2 ]
 
 let features = [
-  "VDI_CREATE", 0L;
-  "VDI_DELETE", 0L;
-  "VDI_ATTACH", 0L;
-  "VDI_DETACH", 0L;
-  "VDI_ACTIVATE", 0L;
-  "VDI_DEACTIVATE", 0L;
-  "VDI_SNAPSHOT", 0L;
-  "VDI_CLONE", 0L;
-  "VDI_RESIZE", 0L
-] @ (List.map (fun x -> Printf.sprintf "FORMAT_%s" (String.uppercase (string_of_format x)), 0L) supported_formats)
+  "VDI_CREATE";
+  "VDI_DELETE";
+  "VDI_ATTACH";
+  "VDI_DETACH";
+  "VDI_ACTIVATE";
+  "VDI_DEACTIVATE";
+  "VDI_SNAPSHOT";
+  "VDI_CLONE";
+  "VDI_RESIZE"
+] @ (List.map (fun x -> Printf.sprintf "FORMAT_%s" (String.uppercase (string_of_format x))) supported_formats)
 let _path = "path"
 let _location = "location"
 let _format = "format"
@@ -397,6 +397,8 @@ module Implementation = struct
   module SR = struct
     open Storage_skeleton.SR
     let list = list
+    let update_snapshot_info_src = update_snapshot_info_src
+    let update_snapshot_info_dest = update_snapshot_info_dest
     let stat ctx ~dbg ~sr =
       let sr = Attached_srs.get sr in
       let x = Statvfs.statvfs sr.path in
@@ -478,6 +480,7 @@ module Implementation = struct
   module Policy = struct include Storage_skeleton.Policy end
   module DATA = struct include Storage_skeleton.DATA end
   let get_by_name = Storage_skeleton.get_by_name
+
 end
 
 module Server = Storage_interface.Server(Implementation)
