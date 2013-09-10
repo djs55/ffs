@@ -44,8 +44,6 @@ let csv = Re_str.split_delim comma
 
 let queues : string list ref = ref [
   "org.xen.xcp.storage.ffs";
-  "org.xen.xcp.storage.ext";
-  "org.xen.xcp.storage.iso";
 ]
 
 let options = [

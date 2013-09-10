@@ -1,3 +1,8 @@
+0.9.17 (10-Sep-2013):
+* by default we don't pretend to be an 'ext' or an 'iso' driver
+  to avoid conflicts with existing SMAPIv1 drivers of the same
+  names.
+
 0.9.16 (16-Aug-2013):
 * update to xcp-idl 0.9.11
 
