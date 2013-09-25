@@ -6,7 +6,7 @@ obuild-ver: 1
 executable ffs
   main: main.ml
   src-dir: .
-  build-deps: xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, syslog, vhdlib, tapctl
+  build-deps: xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, vhdlib, tapctl
   pp: camlp4o
   c-dir: .
   c-sources: statvfs_stubs.c
