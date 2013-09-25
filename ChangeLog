@@ -1,3 +1,6 @@
+0.9.18 (25-Sep-2013):
+* use syslog from xcp-idl
+
 0.9.17 (10-Sep-2013):
 * by default we don't pretend to be an 'ext' or an 'iso' driver
   to avoid conflicts with existing SMAPIv1 drivers of the same
