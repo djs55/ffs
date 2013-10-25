@@ -1,3 +1,7 @@
+0.9.20 (25-Oct-2013):
+* implement VDI.{add_to,remove_from}_sm_config
+* implement VDI.set_content_id
+
 0.9.19 (25-Oct-2013):
 * implement VDI.compose
 * stub out VDI.similar_content
