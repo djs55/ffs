@@ -139,7 +139,6 @@ module Implementation = struct
     let epoch_end = epoch_end
     let get_url = get_url
     let set_persistent = set_persistent
-    let compose = compose
     let add_to_sm_config = add_to_sm_config
     let remove_from_sm_config = remove_from_sm_config
     let set_content_id = set_content_id
