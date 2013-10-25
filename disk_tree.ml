@@ -23,12 +23,17 @@ let marker = "Machine readable data follows - DO NOT EDIT\n"
 let marker_regex = Re_str.regexp_string marker
 
 let filename sr name = Filename.concat sr.path name ^ "." ^ readme_ext
-  let read sr name =
+
+let read sr name =
+  try
     let txt = string_of_file (filename sr name) in
     match Re_str.bounded_split_delim marker_regex txt 2 with
     | [ _; x ] -> Some (t_of_rpc (Jsonrpc.of_string x))
     | _ -> None
-       
+  with e ->
+    info "No .readme file containing child information for %s" name;
+    None   
+    
 let write sr name t =
   let image_filename = vdi_path_of sr name in
   let preamble = [

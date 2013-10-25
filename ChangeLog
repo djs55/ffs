@@ -1,3 +1,7 @@
+0.9.19 (25-Oct-2013):
+* implement VDI.compose
+* stub out VDI.similar_content
+
 0.9.18 (25-Sep-2013):
 * use syslog from xcp-idl
 
