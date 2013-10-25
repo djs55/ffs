@@ -141,7 +141,6 @@ module Implementation = struct
     let set_persistent = set_persistent
     let add_to_sm_config = add_to_sm_config
     let remove_from_sm_config = remove_from_sm_config
-    let set_content_id = set_content_id
     let get_by_name = get_by_name
 
     let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s.%s" name sr.sr vdi device_ext
@@ -321,6 +320,18 @@ module Implementation = struct
 
     let snapshot = snapshot_clone_common true
     let clone = snapshot_clone_common false
+
+    let set_content_id ctx ~dbg ~sr ~vdi ~content_id =
+      info "VDI.set_content_id dbg:%s sr:%s vdi:%s content_id:%s" dbg sr vdi content_id;
+      let sr = Attached_srs.get sr in
+      let vdi_path = vdi_path_of sr vdi in
+      let md_path = md_path_of sr vdi in
+      match vdi_info_of_path vdi_path with
+      | None ->
+        raise (Vdi_does_not_exist vdi);
+      | Some vdi_info ->
+        let vdi_info = { vdi_info with content_id } in
+        file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info))
 
     let similar_content ctx ~dbg ~sr ~vdi =
       info "VDI.similar_content dbg:%s sr:%s vdi:%s" dbg sr vdi;
