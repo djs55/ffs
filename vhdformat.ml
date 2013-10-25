@@ -84,6 +84,10 @@ let get_parent path =
       try Some (Filename.basename (Vhd.get_parent vhd)) with _ -> None
     )
 
+let set_parent path newparent =
+  with_vhd path [ Vhd.Open_rdwr ]
+    (fun vhd -> Vhd.set_parent vhd newparent false)
+
 let is_hidden path =
   with_vhd path [ Vhd.Open_rdonly ]
     (fun vhd -> Vhd.get_hidden vhd <> 0)

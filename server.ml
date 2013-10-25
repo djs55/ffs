@@ -140,7 +140,6 @@ module Implementation = struct
     let get_url = get_url
     let set_persistent = set_persistent
     let compose = compose
-    let similar_content = similar_content
     let add_to_sm_config = add_to_sm_config
     let remove_from_sm_config = remove_from_sm_config
     let set_content_id = set_content_id
@@ -323,6 +322,33 @@ module Implementation = struct
 
     let snapshot = snapshot_clone_common true
     let clone = snapshot_clone_common false
+
+    let similar_content ctx ~dbg ~sr ~vdi =
+      info "VDI.similar_content dbg:%s sr:%s vdi:%s" dbg sr vdi;
+      []
+
+    let compose ctx ~dbg ~sr ~vdi1 ~vdi2 =
+      info "VDI.compose dbg:%s sr:%s vdi1:%s vdi2:%s" dbg sr vdi1 vdi2;
+      let sr = Attached_srs.get sr in
+
+      let format1 = vdi_format_of sr vdi1 in
+      let format2 = vdi_format_of sr vdi2 in
+      if format1 <> format2
+      then failwith "VDI.compose can't mix formats";
+      if format1 <> Vhd
+      then failwith "VDI.compose only supports vhd";
+
+      let node = Disk_tree.read sr vdi1 in
+      let vdi1_path = vdi_path_of sr vdi1 in
+      let vdi2_path = vdi_path_of sr vdi2 in
+      Vhdformat.set_parent vdi2_path vdi1_path;
+      match node with
+      | Some node ->
+        (* Metadata exists means it's one of ours. Keep it fresh *)
+        Disk_tree.(write sr vdi1 { children = vdi2 :: node.children })
+      | None ->
+        (* Someone else created this. This is ok, we'll not be writing to it *)
+        ()
 
     let resize ctx ~dbg ~sr ~vdi ~new_size =
       info "VDI.resize %s %s %Ld" sr vdi new_size;
