@@ -139,9 +139,6 @@ module Implementation = struct
     let epoch_end = epoch_end
     let get_url = get_url
     let set_persistent = set_persistent
-    let add_to_sm_config = add_to_sm_config
-    let remove_from_sm_config = remove_from_sm_config
-    let set_content_id = set_content_id
     let get_by_name = get_by_name
 
     let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s.%s" name sr.sr vdi device_ext
@@ -321,6 +318,37 @@ module Implementation = struct
 
     let snapshot = snapshot_clone_common true
     let clone = snapshot_clone_common false
+
+    let modify_vdi_info sr vdi f =
+      let sr = Attached_srs.get sr in
+      let vdi_path = vdi_path_of sr vdi in
+      let md_path = md_path_of sr vdi in
+      match vdi_info_of_path vdi_path with
+      | None ->
+        raise (Vdi_does_not_exist vdi);
+      | Some vdi_info ->
+        let vdi_info = f vdi_info in
+        file_of_string md_path (Jsonrpc.to_string (rpc_of_vdi_info vdi_info))
+
+    let add_to_sm_config ctx ~dbg ~sr ~vdi ~key ~value =
+      info "VDI.add_to_sm_config dbg:%s sr:%s vdi:%s key:%s value:%s" dbg sr vdi key value;
+      modify_vdi_info sr vdi
+        (fun vdi_info ->
+          let sm_config = List.filter (fun (k, _) -> k <> key) vdi_info.sm_config in
+          { vdi_info with sm_config = (key, value) :: sm_config }
+        )
+
+    let remove_from_sm_config ctx ~dbg ~sr ~vdi ~key =
+      info "VDI.remove_from_sm_config dbg:%s sr:%s vdi:%s key:%s" dbg sr vdi key;
+      modify_vdi_info sr vdi
+        (fun vdi_info ->
+          let sm_config = List.filter (fun (k, _) -> k <> key) vdi_info.sm_config in
+          { vdi_info with sm_config }
+        )
+
+    let set_content_id ctx ~dbg ~sr ~vdi ~content_id =
+      info "VDI.set_content_id dbg:%s sr:%s vdi:%s content_id:%s" dbg sr vdi content_id;
+      modify_vdi_info sr vdi (fun vdi_info -> { vdi_info with content_id })
 
     let similar_content ctx ~dbg ~sr ~vdi =
       info "VDI.similar_content dbg:%s sr:%s vdi:%s" dbg sr vdi;
