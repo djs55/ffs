@@ -365,17 +365,34 @@ module Implementation = struct
       if format1 <> Vhd
       then failwith "VDI.compose only supports vhd";
 
-      let node = Disk_tree.read sr vdi1 in
       let vdi1_path = vdi_path_of sr vdi1 in
       let vdi2_path = vdi_path_of sr vdi2 in
+      let old_parent = match Vhdformat.get_parent vdi2_path with
+        | None ->
+          error "VDI.compose dbg:%s %s has no parent; is not a differencing disk" dbg vdi2_path;
+          failwith "VDI is not a differencing disk"
+        | Some x -> x in
+
+      info "VDI.compose dbg:%s %s/parent <- %s" dbg vdi2_path vdi1_path;
       Vhdformat.set_parent vdi2_path vdi1_path;
-      match node with
-      | Some node ->
-        (* Metadata exists means it's one of ours. Keep it fresh *)
-        Disk_tree.(write sr vdi1 { children = vdi2 :: node.children })
-      | None ->
-        (* Someone else created this. This is ok, we'll not be writing to it *)
-        ()
+
+      let children_of vdi = match Disk_tree.read sr vdi with
+        | None -> []
+        | Some c -> c.Disk_tree.children in
+
+      (* Update the readme of vdi2's old parent: remove vdi2 *)
+      info "VDI.compose dbg:%s %s/children = [ %s ] - %s" dbg old_parent (String.concat ", " (children_of old_parent)) vdi2;
+      Disk_tree.(write sr old_parent { children = List.filter (fun x -> x <> vdi2) (children_of old_parent) });
+
+      (* Update the readme of vdi2's new parent: add vdi2 *)
+      info "VDI.compose dbg:%s %s/children = [ %s ] + %s" dbg vdi1 (String.concat ", " (children_of vdi1)) vdi2;
+      Disk_tree.(write sr vdi1 { children = vdi2 :: (children_of vdi1) });
+
+      (* Signal tapdisk that the chain has changed *)
+      let symlink = device_path_of sr vdi2 in
+      let device = Unix.readlink symlink in
+      info "VDI.compose dbg:%s refreshing %s" dbg device;
+      Vhdformat.refresh device
 
     let resize ctx ~dbg ~sr ~vdi ~new_size =
       info "VDI.resize %s %s %Ld" sr vdi new_size;

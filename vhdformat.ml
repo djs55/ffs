@@ -61,6 +61,16 @@ let activate dev file ty =
     Tapctl.unpause (ctx ()) dev file ty
   end
 
+let refresh dev : unit =
+  match Tapctl.of_device (ctx ()) dev with
+    | dev, driver, (Some ("vhd", file)) ->
+      t_pause dev;
+      t_unpause dev file Tapctl.Vhd
+    | dev, driver, (Some ("aio", file)) ->
+      t_pause dev;
+      t_unpause dev file Tapctl.Aio
+    | _,   _, _ -> () (* no active file, nothing to refresh *)
+
 let deactivate dev =
   let dev, _, _ = Tapctl.of_device (ctx ()) dev in
   Tapctl.close (ctx ()) dev
