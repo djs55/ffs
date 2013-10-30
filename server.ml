@@ -308,6 +308,8 @@ module Implementation = struct
       Disk_tree.(write sr base { children = [ vdi; snapshot ] });
       let vdi_info = { vdi_info with
         vdi = snapshot;
+        virtual_size = parent_vdi_info.virtual_size;
+        physical_utilisation = 0L;
         is_a_snapshot;
         snapshot_of = if is_a_snapshot then vdi else "";
         (* TODO: snapshot_time *)

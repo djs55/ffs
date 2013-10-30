@@ -1,3 +1,6 @@
+trunk (unreleased)
+* VDI.{clone,snapshot} set virtual_size correctly
+
 0.9.21 (28-Oct-2013):
 * VDI.compose now updates metadata, refreshes tapdisk
 
