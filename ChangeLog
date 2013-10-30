@@ -1,4 +1,4 @@
-trunk (unreleased)
+0.9.22 (30-Oct-2013):
 * VDI.{clone,snapshot} set virtual_size correctly
 
 0.9.21 (28-Oct-2013):
