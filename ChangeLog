@@ -1,3 +1,7 @@
+0.9.23 (31-Oct-2013)
+* SR.scan: set the virtual_size from the vhd metadata, if a
+  file has the well-known .vhd extension
+
 0.9.22 (30-Oct-2013):
 * VDI.{clone,snapshot} set virtual_size correctly
 
