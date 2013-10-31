@@ -185,7 +185,12 @@ module Implementation = struct
             snapshot_time = iso8601_of_float 0.;
             snapshot_of = "";
             read_only = false;
-            virtual_size = stats.st_size;
+            virtual_size =
+              if ext = vhd_ext
+              then Vhdformat.get_virtual_size path
+              else if ext = qcow2_ext
+              then Qemu.get_virtual_size path
+              else stats.st_size;
             physical_utilisation = stats.st_size;
             sm_config =
               if List.mem_assoc ext ext_format 

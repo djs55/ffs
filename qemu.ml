@@ -148,4 +148,6 @@ let detach device = ()
 let activate _ _ = ()
 let deactivate _ = ()
 
-
+let get_virtual_size path =
+  error "get_virtual_size unimplemented for qemu-img disks";
+  raise (Storage_interface.Backend_error("UNIMPLEMENTED", [ "qemu-img"; "get_virtual_size"]))

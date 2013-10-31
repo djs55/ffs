@@ -113,3 +113,5 @@ let resize path new_virtual_size =
   with_vhd path [ Vhd.Open_rdwr ]
     (fun vhd -> Vhd.set_virt_size vhd new_virtual_size);
   new_virtual_size
+
+let get_virtual_size path = with_vhd path [ Vhd.Open_rdonly ] Vhd.get_virtual_size
