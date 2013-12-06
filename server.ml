@@ -134,12 +134,7 @@ module Implementation = struct
   module DP = struct include Storage_skeleton.DP end
   module VDI = struct
     (* The following are all not implemented: *)
-    open Storage_skeleton.VDI
-    let epoch_begin = epoch_begin
-    let epoch_end = epoch_end
-    let get_url = get_url
-    let set_persistent = set_persistent
-    let get_by_name = get_by_name
+    include Storage_skeleton.VDI
 
     let device_path_of sr vdi = Printf.sprintf "/var/run/nonpersistent/%s/%s/%s.%s" name sr.sr vdi device_ext
 
@@ -472,10 +467,7 @@ module Implementation = struct
       end
   end
   module SR = struct
-    open Storage_skeleton.SR
-    let list = list
-    let update_snapshot_info_src = update_snapshot_info_src
-    let update_snapshot_info_dest = update_snapshot_info_dest
+    include Storage_skeleton.SR
     let stat ctx ~dbg ~sr =
       let sr = Attached_srs.get sr in
       let x = Statvfs.statvfs sr.path in
