@@ -289,7 +289,9 @@ module Implementation = struct
       let format = vdi_format_of sr vdi in
       info "VDI.clone %s (format = %s)" vdi (string_of_format format);
 
-      let parent_vdi_info = vdi_info_of_rpc (Jsonrpc.of_string (string_of_file md_path)) in
+      let parent_vdi_info = match vdi_info_of_path vdi_path with
+      | None -> raise (Vdi_does_not_exist vdi)
+      | Some info -> info in
 
       let snapshot_fn, leaf_type = match format with
       | Vhd | Raw ->
