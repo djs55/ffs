@@ -1,6 +1,6 @@
 BINDIR?=/tmp/
 
-.PHONY: build install uninstall clean
+.PHONY: build install uninstall clean test
 
 build: configure.done version.ml
 	obuild build
@@ -17,6 +17,9 @@ install:
 
 uninstall:
 	rm -f ${BINDIR}/ffs
+
+test:
+	echo Please write some tests.
 
 clean:
 	rm -rf dist configure.done
