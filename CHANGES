@@ -1,5 +1,8 @@
 0.9.25 (2-Oct-2014)
 * Use ocaml-vhd rather than libvhd to avoid depending on Xen C headers
+* Use the new command-line interface
+* Add a manpage
+* Allow all paths to be configured by the command-line and config file
 
 0.9.23 (31-Oct-2013)
 * SR.scan: set the virtual_size from the vhd metadata, if a
