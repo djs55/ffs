@@ -54,10 +54,24 @@ let options = [
   "sr-mount-path", Arg.Set_string Server.mount_path, (fun () -> !Server.mount_path), "Default mountpoint for mounting remote filesystems";
 ]
 
+let doc = String.concat "\n" [
+  "A simple filesystem-based storage implementation for xapi";
+  "";
+  "Ffs manages disk files from a user-supplied directory. The user is expected to mount and unmount the directory themselves (e.g. NFS via /etc/fstab). Ffs will create disk image files in vhd, qcow2 or raw format. Ffs will use readable names for the disk files (avoiding UUIDs). Note that ffs performs no file locking, so use shared filesystems at your own risk.";
+]
+
 let main () =
   debug "%s version %s starting" Server.name Version.version;
 
-  configure ~options ~resources ();
+  (match Xcp_service.configure2
+    ~name:(Filename.basename Sys.argv.(0))
+    ~version:Version.version
+    ~doc ~options ~resources () with
+  | `Ok () -> ()
+  | `Error m ->
+    error "%s" m;
+    exit 1);
+
   let servers = List.map (fun queue_name ->
     Xcp_service.make ~path:!socket_path ~queue_name
       ~rpc_fn:(fun s -> Server.Server.process () s) ()
