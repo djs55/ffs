@@ -38,7 +38,8 @@ let create path size =
     raise (Backend_error("VDI_SIZE", [ to_string size; to_string mib; to_string (div max_size mib) ]))
   end;
   Lwt_main.run (
-    Vhd_IO.create_dynamic ~filename:path ~size () >>= fun vhd ->
+    Vhd_IO.create_dynamic ~filename:path ~size:max_size () >>= fun vhd ->
+    let vhd = Vhd.F.Vhd.resize vhd size in
     Vhd_IO.close vhd
   )
 
@@ -105,8 +106,13 @@ let get_parent path =
     return parent
   )
 
-let set_parent path parent_filename : unit =
-  failwith "Vhdformat.set_parent is not implemented"
+let set_parent path parent_filename =
+  Lwt_main.run (
+    Vhd_IO.openfile path true >>= fun vhd ->
+    let header = Vhd.F.Header.set_parent vhd.Vhd.F.Vhd.header parent_filename in
+    let vhd = { vhd with Vhd.F.Vhd.header } in
+    Vhd_IO.close vhd
+  )
 
 let get_virtual_size path =
   Lwt_main.run (
@@ -116,7 +122,9 @@ let get_virtual_size path =
   )
 
 let resize path new_virtual_size =
-  let new_virtual_size = roundup new_virtual_size two_mib in
-  if new_virtual_size > max_size
-  then failwith ("vhd resize request exceeds maximum");
-  failwith "vhd resize is not currently implemented"
+  Lwt_main.run (
+    Vhd_IO.openfile path true >>= fun vhd ->
+    let vhd = Vhd.F.Vhd.resize vhd new_virtual_size in
+    Vhd_IO.close vhd >>= fun () ->
+    return vhd.Vhd.F.Vhd.footer.Vhd.F.Footer.current_size
+  )
