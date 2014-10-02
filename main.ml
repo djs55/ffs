@@ -52,6 +52,7 @@ let options = [
   "queue-name", Arg.String (fun x -> queues := csv x), (fun () -> String.concat "," !queues), "Comma-separated list of queue names to listen on";
   "default-format", Arg.String Server.set_default_format, Server.get_default_format, "Default format for disk files";
   "sr-mount-path", Arg.Set_string Server.mount_path, (fun () -> !Server.mount_path), "Default mountpoint for mounting remote filesystems";
+  "sr-state-path", Arg.Set_string Server.state_root, (fun () -> !Server.state_root), "Default directory tree for storing metadata";
 ]
 
 let doc = String.concat "\n" [
