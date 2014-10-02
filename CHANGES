@@ -1,3 +1,6 @@
+0.9.25 (2-Oct-2014)
+* Use ocaml-vhd rather than libvhd to avoid depending on Xen C headers
+
 0.9.23 (31-Oct-2013)
 * SR.scan: set the virtual_size from the vhd metadata, if a
   file has the well-known .vhd extension
