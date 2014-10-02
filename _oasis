@@ -13,4 +13,4 @@ Executable ffs
   MainIs:             main.ml
   Custom:             true
   Install:            false
-  BuildDepends:       xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, tapctl, vhd-format.lwt, vhd-format, threads, io-page, io-page.unix
+  BuildDepends:       xcp, xcp.storage, re, re.str, rpclib, rpclib.json, cmdliner, cohttp, tapctl, vhd-format.lwt, vhd-format (>= 0.7.2), threads, io-page, io-page.unix
