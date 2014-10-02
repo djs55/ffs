@@ -32,7 +32,7 @@ let maximum_size = 9223372036854774784L
 let minimum_size = 0L
 
 let check_size proposed_size =
-  if proposed_size < minimum_size or proposed_size > maximum_size then begin
+  if proposed_size < minimum_size || proposed_size > maximum_size then begin
     error "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" (div proposed_size mib) (div minimum_size mib) (div maximum_size mib);
     raise (Storage_interface.Backend_error("VDI_SIZE", [ to_string proposed_size; to_string minimum_size; to_string (div maximum_size mib) ]))
   end

@@ -33,7 +33,7 @@ open Lwt
 
 let create path size =
   let size = roundup size two_mib in
-  if size < mib or size > max_size then begin
+  if size < mib || size > max_size then begin
     error "Cannot create vhd with virtual_size = %Ld MiB (must be between 1 MiB and %Ld MiB)" (div size mib) (div max_size mib);
     raise (Backend_error("VDI_SIZE", [ to_string size; to_string mib; to_string (div max_size mib) ]))
   end;
