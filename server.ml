@@ -45,7 +45,8 @@ let configuration = [
 ]
 let _type = "type" (* in sm-config *)
 
-let state_path = Printf.sprintf "/var/run/nonpersistent/%s.%s" name json_ext
+let state_root = ref "/var/run/nonpersistent"
+let state_path () = Printf.sprintf "%s/%s.%s" !state_root name json_ext
 let mount_path = ref "/var/run/sr-mount"
 let device_ext = "device"
 
@@ -85,11 +86,12 @@ module Attached_srs = struct
   let save () =
     let srs = Hashtbl.fold (fun id sr acc -> (id, sr) :: acc) table [] in
     let txt = Jsonrpc.to_string (rpc_of_srs srs) in
-    let dir = Filename.dirname state_path in
+    let dir = Filename.dirname (state_path ()) in
     if not(Sys.file_exists dir)
     then mkdir_rec dir 0o0755;
-    file_of_string state_path txt
+    file_of_string (state_path ()) txt
   let load () =
+    let state_path = state_path () in
     if Sys.file_exists state_path then begin
       info "Loading state from: %s" state_path;
       let all = string_of_file state_path in
@@ -161,13 +163,11 @@ module Implementation = struct
             qcow2_ext, Qcow2;
           ] in
 
-          (* We hide any .vhd which is marked as 'hidden' OR for which we
-             have created a parent metadata file for. *)
+          (* We hide any .vhd which has a parent metadata file *)
           if stats.st_kind <> Unix.S_REG
           || ext = json_ext
           || ext = readme_ext
           || (Sys.file_exists readme_path)
-          || (ext = vhd_ext && Vhdformat.is_hidden path)
           then None
           else Some {
             vdi = Filename.basename path;

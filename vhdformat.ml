@@ -16,6 +16,9 @@ open Storage_interface
 open Common
 open Int64
 
+module F = Vhd.F.From_file(Vhd_lwt.IO)
+open F
+
 let kib = 1024L
 let mib = mul kib kib
 let gib = mul kib mib
@@ -26,13 +29,19 @@ let max_size = mul gib 2040L
 let roundup v block =
   mul block (div (sub (add v block) 1L) block)
 
+open Lwt
+
 let create path size =
   let size = roundup size two_mib in
-  if size < mib or size > max_size then begin
+  if size < mib || size > max_size then begin
     error "Cannot create vhd with virtual_size = %Ld MiB (must be between 1 MiB and %Ld MiB)" (div size mib) (div max_size mib);
     raise (Backend_error("VDI_SIZE", [ to_string size; to_string mib; to_string (div max_size mib) ]))
   end;
-  Vhd.create path size (Vhd.Ty_dynamic) max_size []
+  Lwt_main.run (
+    Vhd_IO.create_dynamic ~filename:path ~size:max_size () >>= fun vhd ->
+    let vhd = Vhd.F.Vhd.resize vhd size in
+    Vhd_IO.close vhd
+  )
 
 let my_context = ref (Tapctl.create ())
 let ctx () = !my_context
@@ -80,38 +89,42 @@ let detach dev =
   t_detach dev
 
 let snapshot leaf_path parent_path parent_format virtual_size =
-  Vhd.snapshot leaf_path virtual_size parent_path max_size (if parent_format = Raw then [Vhd.Flag_creat_parent_raw] else [])
-
-let with_vhd path flags f =
-  let vhd = Vhd._open path flags in
-  finally
-    (fun () -> f vhd)
-    (fun () -> Vhd.close vhd)
+  Lwt_main.run (
+    Vhd_IO.openchain parent_path false >>= fun parent ->
+    Vhd_IO.create_difference ~filename:leaf_path ~parent () >>= fun vhd ->
+    Vhd_IO.close parent >>= fun () ->
+    Vhd_IO.close vhd
+  )
 
 let get_parent path =
-  with_vhd path [ Vhd.Open_rdonly ]
-    (fun vhd ->
-      try Some (Filename.basename (Vhd.get_parent vhd)) with _ -> None
-    )
+  Lwt_main.run (
+    Vhd_IO.openchain path false >>= fun vhd ->
+    let parent = match vhd.Vhd.F.Vhd.parent with
+    | None -> None
+    | Some p -> Some p.Vhd.F.Vhd.filename in
+    Vhd_IO.close vhd >>= fun () ->
+    return parent
+  )
 
-let set_parent path newparent =
-  with_vhd path [ Vhd.Open_rdwr ]
-    (fun vhd -> Vhd.set_parent vhd newparent false)
+let set_parent path parent_filename =
+  Lwt_main.run (
+    Vhd_IO.openfile path true >>= fun vhd ->
+    let header = Vhd.F.Header.set_parent vhd.Vhd.F.Vhd.header parent_filename in
+    let vhd = { vhd with Vhd.F.Vhd.header } in
+    Vhd_IO.close vhd
+  )
 
-let is_hidden path =
-  with_vhd path [ Vhd.Open_rdonly ]
-    (fun vhd -> Vhd.get_hidden vhd <> 0)
-
-let set_hidden path =
-  with_vhd path [ Vhd.Open_rdwr ]
-    (fun vhd -> Vhd.set_hidden vhd 1)
+let get_virtual_size path =
+  Lwt_main.run (
+    Vhd_IO.openchain path false >>= fun vhd ->
+    let size = vhd.Vhd.F.Vhd.footer.Vhd.F.Footer.current_size in
+    return size
+  )
 
 let resize path new_virtual_size =
-  let new_virtual_size = roundup new_virtual_size two_mib in
-  if new_virtual_size > max_size
-  then failwith ("vhd resize request exceeds maximum");
-  with_vhd path [ Vhd.Open_rdwr ]
-    (fun vhd -> Vhd.set_virt_size vhd new_virtual_size);
-  new_virtual_size
-
-let get_virtual_size path = with_vhd path [ Vhd.Open_rdonly ] Vhd.get_virtual_size
+  Lwt_main.run (
+    Vhd_IO.openfile path true >>= fun vhd ->
+    let vhd = Vhd.F.Vhd.resize vhd new_virtual_size in
+    Vhd_IO.close vhd >>= fun () ->
+    return vhd.Vhd.F.Vhd.footer.Vhd.F.Footer.current_size
+  )
