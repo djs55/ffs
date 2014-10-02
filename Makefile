@@ -36,3 +36,7 @@ reinstall: install
 uninstall:
 	rm -f $(DESTDIR)/$(SBINDIR)/ffs
 	rm -f $(DESTDIR)/$(MANDIR)/man1/ffs.1
+
+.PHONY: test
+test:
+	@echo Tests vacuously passed
