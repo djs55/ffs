@@ -1,3 +1,7 @@
 version.ml
-dist
-configure.done
+_build/
+ffs
+ffs.1
+setup.bin
+setup.data
+setup.log
