@@ -161,13 +161,11 @@ module Implementation = struct
             qcow2_ext, Qcow2;
           ] in
 
-          (* We hide any .vhd which is marked as 'hidden' OR for which we
-             have created a parent metadata file for. *)
+          (* We hide any .vhd which has a parent metadata file *)
           if stats.st_kind <> Unix.S_REG
           || ext = json_ext
           || ext = readme_ext
           || (Sys.file_exists readme_path)
-          || (ext = vhd_ext && Vhdformat.is_hidden path)
           then None
           else Some {
             vdi = Filename.basename path;

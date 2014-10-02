@@ -1,22 +1,30 @@
-BINDIR?=/tmp/
+.PHONY: all clean install build reinstall uninstall distclean
+all: build
 
-.PHONY: build install uninstall clean
+clean:
+	@rm -f setup.data setup.log setup.bin config.mk version.ml
+	@rm -rf _build
+	@rm -f *.native
 
-build: configure.done version.ml
-	obuild build
+setup.bin: setup.ml
+	@ocamlopt.opt -o $@ $< || ocamlopt -o $@ $< || ocamlc -o $@ $<
+	@rm -f setup.cmx setup.cmi setup.o setup.cmo
+
+setup.data: setup.bin
+	@./setup.bin -configure
+
+build: setup.data setup.bin version.ml
+	@./setup.bin -build 
 
 version.ml: VERSION
 	echo "let version = \"$(shell cat VERSION)\"" > version.ml
 
-configure.done: ffs.obuild
-	obuild configure
-	touch configure.done
-
 install:
-	install -m 0755 dist/build/ffs/ffs ${BINDIR}
+	mkdir -p $(DESTDIR)/$(SBINDIR)
+	install ./main.native $(DESTDIR)/$(SBINDIR)/ffs
+
+reinstall: install
 
 uninstall:
-	rm -f ${BINDIR}/ffs
+	rm -f $(DESTDIR)/$(SBINDIR)/ffs
 
-clean:
-	rm -rf dist configure.done
