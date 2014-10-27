@@ -26,3 +26,31 @@ let mount uri' =
     raise (Failure (Printf.sprintf "Failed to parse URI: %s" uri'))
 
 let umount uri' = ()
+
+let mountpoint uri' =
+  let uri = Uri.of_string uri' in
+  (* We only support file: URLs so *)
+  Uri.path uri
+
+let ls uri' =
+  uri' |> mountpoint |> Sys.readdir |> Array.to_list
+
+exception Skip
+
+let volume_of_file uri' filename =
+  let mountpoint = mountpoint uri' in
+  try
+    let open Unix.LargeFile in
+    let path = Filename.concat mountpoint filename in
+    let stats = stat path in Some {
+      Storage.V.Types.key = filename;
+      name = filename;
+      description = "";
+      read_write = true;
+      uri = [ (match stats.st_kind with
+              | Unix.S_REG -> "file"
+              | Unix.S_BLK -> "block"
+              | _ -> raise Skip) ^ "://" ^ path ];
+      virtual_size = stats.st_size;
+    }
+  with _ -> None
