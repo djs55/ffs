@@ -20,28 +20,20 @@ open Common
 
 module Command = struct
   open Storage.V.Types
-  include Volume.Snapshot
+  include Volume.Destroy
 
-  let command common { Volume.Snapshot.In.dbg; sr; key } =
-    let name = Fs.create sr key (`Snapshot key) in
-    let dir = Fs.mountpoint sr in
-    {
-      key = name;
-      name = name;
-      description = "Clone of " ^ name;
-      read_write = true;
-      uri = ["file://" ^ (Filename.concat dir name) ];
-      virtual_size = 0L;
-    }
+  let command common { Volume.Destroy.In.dbg; sr; key } =
+    let path = Fs.path_of sr key in
+    if not(Sys.file_exists path)
+    then raise (Volume_does_not_exist key);
+
+    Fs.rm sr key
 end
 
 module Test = struct
   open OUnit
 
-  let test common =
-    let suite = "clone" >::: [
-    ] in
-    ignore(run_test_tt ~verbose:common.Common.verbose suite)
+  let test common = ()
 end
 
 module M = Make(Command)(Test)

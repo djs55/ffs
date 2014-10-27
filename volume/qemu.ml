@@ -59,6 +59,24 @@ let resize ?(format=Qcow2) path new_virtual_size =
   let (_: string) = run !qemu_img args in
   new_virtual_size
 
+(* It's quite hard to reliably parse the qemu-info, so we
+   read the backing file directly *)
+let qcow_magic = "QFI\xfb"
+let read_backing_file path =
+  let fd = Unix.openfile path [ Unix.O_RDONLY ] 0o0 in
+  finally
+    (fun () ->
+      let c = Unix_cstruct.of_fd fd in
+      let qcow_magic' = String.length qcow_magic in
+      let magic = Cstruct.(to_string (sub c 0 qcow_magic')) in
+      if magic <> qcow_magic then failwith "Failed to read qcow2 magic";
+      let backing_file_offset = Cstruct.BE.get_uint64 c 8 |> Int64.to_int in
+      let backing_file_length = Cstruct.BE.get_uint32 c 16 |> Int32.to_int in
+      if backing_file_length = 0
+      then None
+      else Some(Cstruct.(to_string (sub c backing_file_offset backing_file_length)))
+    ) (fun () -> Unix.close fd)
+
 let newline_regex = Re_str.regexp_string "\n"
 let colon_regex = Re_str.regexp ":[ ]*"
 let space_regex = Re_str.regexp_string " "
@@ -103,10 +121,6 @@ let info ?(format=Qcow2) path =
     if not(List.mem_assoc key table)
     then failwith (Printf.sprintf "failed to find '%s' in qemu-img info output" key)
     else List.assoc key table in
-  let find_opt key =
-    if not(List.mem_assoc key table)
-    then None
-    else Some (List.assoc key table) in
   let parse_size size =
     let fragments = Re_str.split_delim space_regex size in
     match List.fold_left (fun best_guess x ->
@@ -136,7 +150,7 @@ let info ?(format=Qcow2) path =
       virtual_size = parse_size (find _virtual_size);
       disk_size = parse_size (find _disk_size);
       cluster_size = Int64.of_string (find _cluster_size);
-      backing_file = find_opt _backing_file;
+      backing_file = read_backing_file path;
   }
 
 let destroy vdi_path =
