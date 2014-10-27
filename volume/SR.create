@@ -1,5 +1,5 @@
 #!/usr/bin/env ocamlscript
-Ocaml.sources := ["common.ml"; "fs.ml"];
+Ocaml.sources := ["common.ml"; "qemu.ml"; "fs.ml"];
 Ocaml.packs := ["xapi-storage"; "cmdliner"; "re.str"; "oUnit"; "uri"; "rpclib"; "rpclib.syntax"; "cstruct"; "cstruct.unix"];
 Ocaml.ocamlflags := ["-thread"]
 --
