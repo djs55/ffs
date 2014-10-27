@@ -34,13 +34,14 @@ let mountpoint uri' =
 let ls uri' =
   uri' |> mountpoint |> Sys.readdir |> Array.to_list
 
+let path_of uri' key = Filename.concat (mountpoint uri') key
+
 exception Skip
 
 let volume_of_file uri' filename =
-  let mountpoint = mountpoint uri' in
   try
     let open Unix.LargeFile in
-    let path = Filename.concat mountpoint filename in
+    let path = path_of uri' filename in
     let stats = stat path in Some {
       Storage.V.Types.key = filename;
       name = filename;
@@ -61,17 +62,8 @@ let mangle_name x : string =
   then "unknown-volume"
   else x
 
-let create uri' name kind =
-  let dir = mountpoint uri' in
-  let size = match kind with
-  | `New size -> size
-  | `Snapshot parent ->
-    let parent' = Qemu.info (Filename.concat dir parent) in
-    parent'.Qemu.disk_size in
-  let name = mangle_name name in
+let choose_filename uri' name =
   let name' = String.length name in
-  Qemu.check_size size;
-  (* Note: qemu won't fail if we give an existing filename. Caveat user! *)
   let existing = ls uri' in
   let largest_suffix =
     existing
@@ -80,12 +72,123 @@ let create uri' name kind =
     |>  (List.map (fun x -> try int_of_string x with _ -> 0))
     |>  (List.fold_left max 0) in
   let existing = ls uri' in
-  let name = if List.mem name existing then name ^ (string_of_int (largest_suffix + 1)) else name in
-  let path = Filename.concat dir name in
+  if List.mem name existing then name ^ (string_of_int (largest_suffix + 1)) else name
+
+module Disk_tree = struct
+
+  type t = {
+    children: string list;
+  } with rpc
+  (** A node in a managed tree of disk images *)
+
+  let marker = "Machine readable data follows - DO NOT EDIT\n"
+  let marker_regex = Re_str.regexp_string marker
+
+  let readme_ext = "readme"
+
+  let filename uri' name = path_of uri' name ^ "." ^ readme_ext
+
+  let read uri' name =
+    try
+      let txt = Common.string_of_file (filename uri' name) in
+      match Re_str.bounded_split_delim marker_regex txt 2 with
+      | [ _; x ] -> Some (t_of_rpc (Jsonrpc.of_string x))
+      | _ -> None
+    with e ->
+      Common.debug "No .readme file containing child information for %s" name;
+      None   
+    
+  let write uri' name t =
+    let image_filename = path_of uri' name in
+    let preamble = [
+      "Warning";
+      "=======";
+      Printf.sprintf "The file %s is a link in a chain of image files; it contains some" image_filename;
+      "of the disk blocks needed to reconstruct the virtual disk.";
+      "";
+      Printf.sprintf "DO NOT delete %s unless you are SURE it is nolonger referenced by" image_filename;
+      "any other image files. The system will automatically delete the file when it is";
+      "nolonger needed.";
+      "";
+      "Explanation of the data below";
+      "-----------------------------";
+      "The machine-readable data below lists the image files which depend on this one.";
+      "When all these files are deleted it should be safe to delete this file.";
+    ] in
+    let txt = String.concat "" (List.map (fun x -> x ^ "\n") preamble) ^ marker ^ (Jsonrpc.to_string (rpc_of_t t)) in
+    Common.file_of_string (filename uri' name) txt
+
+  let get_parent format image_filename =
+    let open Qemu in
+    match format with
+    | Vhd -> failwith "unimplemented"
+    | Qcow2 ->
+      let info = Qemu.info image_filename in
+      begin match info.Qemu.backing_file with
+      | None -> None
+      | Some x -> Some (Filename.basename x)
+      end
+    | Raw -> None
+
+  let rec rm format uri' name =
+    let image_filename = path_of uri' name in
+    begin match get_parent format image_filename with
+    | Some parent ->
+      begin match read uri' parent with
+        | None ->
+          Common.error "image node %s has no associated metadata -- I can't risk deleting it" parent
+        | Some t ->
+          let children = List.filter (fun x -> x <> name) t.children in
+          if children = [] then begin
+            Common.debug "image node %s has no children: deleting" parent;
+            rm format uri' parent
+          end else begin
+            Common.debug "image node %s now has children: [ %s ]" parent (String.concat "; " children);
+            write uri' parent { children }
+          end
+      end
+    | None -> ()
+    end;
+    Common.rm_f image_filename;
+    Common.rm_f (image_filename ^ "." ^ readme_ext)
+
+  let rename format uri' src dst =
+    let image_filename = path_of uri' src in
+    match get_parent format image_filename with
+    | Some parent ->
+      begin match read uri' parent with
+      | None ->
+        Common.error "image node %s has no associated metadata -- I can't risk manipulating it" parent;
+        failwith "image metadata integrity check failed"
+      | Some t ->
+        let children = dst :: (List.filter (fun x -> x <> src) t.children) in
+        write uri' parent { children }
+      end
+    | None -> ()
+end
+
+let create uri' name kind =
+  let dir = mountpoint uri' in
+  let size = match kind with
+  | `New size -> size
+  | `Snapshot parent ->
+    let parent' = Qemu.info (path_of uri' parent) in
+    parent'.Qemu.disk_size in
+  let name = choose_filename uri' (mangle_name name) in
+  Qemu.check_size size;
+  (* Note: qemu won't fail if we give an existing filename. Caveat user! *)
+  let path = path_of uri' name in
   match kind with
   | `New size ->
     Qemu.create path size;
     name
   | `Snapshot parent ->
-    Qemu.snapshot path parent (* relative *) Qemu.Qcow2 size;
-    name
+    let base = choose_filename uri' (name ^ "-base") in
+    Disk_tree.rename Qemu.Qcow2 dir parent base;
+    Unix.rename (path_of uri' parent) (path_of uri' base);
+    Qemu.snapshot (path_of uri' name) parent (* relative *) Qemu.Qcow2 size;
+    let snapshot = choose_filename uri' (name ^ "-snap") in
+    Qemu.snapshot (path_of uri' snapshot) parent (* relative *) Qemu.Qcow2 size;
+    Disk_tree.(write uri' base { children = [ name; snapshot ] });
+    snapshot
+
