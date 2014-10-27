@@ -13,7 +13,7 @@ test:
 	done
 
 DESTDIR?=/
-SCRIPTDIR?=/usr/lib/xapi-storage-script/datapath/block
+SCRIPTDIR?=/usr/lib/xapi-storage-script/datapath/file
 
 .PHONY: install
 install:
