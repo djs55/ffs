@@ -11,6 +11,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
+
+let readme_ext = "readme"
+
 let mount uri' =
   let uri = Uri.of_string uri' in
   match Uri.scheme uri with
@@ -32,7 +35,11 @@ let mountpoint uri' =
   Uri.path uri
 
 let ls uri' =
-  uri' |> mountpoint |> Sys.readdir |> Array.to_list
+  let all = uri' |> mountpoint |> Sys.readdir |> Array.to_list in
+  (* base images have a readme file *)
+  let all = List.filter (fun x -> not(List.mem (x ^ "." ^ readme_ext) all)) all in
+  (* no readme files *)
+  List.filter (fun x -> not(Common.endswith ("." ^ readme_ext) x)) all
 
 let path_of uri' key = Filename.concat (mountpoint uri') key
 
@@ -83,8 +90,6 @@ module Disk_tree = struct
 
   let marker = "Machine readable data follows - DO NOT EDIT\n"
   let marker_regex = Re_str.regexp_string marker
-
-  let readme_ext = "readme"
 
   let filename uri' name = path_of uri' name ^ "." ^ readme_ext
 
@@ -192,3 +197,4 @@ let create uri' name kind =
     Disk_tree.(write uri' base { children = [ name; snapshot ] });
     snapshot
 
+let rm uri' name = Disk_tree.rm Qemu.Qcow2 uri' name
