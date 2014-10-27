@@ -13,7 +13,11 @@
  *)
 
 open Common
-open Int64
+
+type format =
+  | Vhd
+  | Raw
+  | Qcow2
 
 let qemu_img = ref "/usr/bin/qemu-img"
 
@@ -23,8 +27,8 @@ let string_of_format = function
   | Vhd -> "vdi"
 
 let kib = 1024L
-let mib = mul kib kib
-let gib = mul kib mib
+let mib = Int64.(kib * kib)
+let gib = Int64.(kib * mib)
 
 (* See RWMJ's blog: http://rwmj.wordpress.com/2011/10/03/maximum-qcow2-disk-size/ *)
 let maximum_size = 9223372036854774784L
@@ -33,8 +37,8 @@ let minimum_size = 0L
 
 let check_size proposed_size =
   if proposed_size < minimum_size || proposed_size > maximum_size then begin
-    error "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" (div proposed_size mib) (div minimum_size mib) (div maximum_size mib);
-    raise (Storage_interface.Backend_error("VDI_SIZE", [ to_string proposed_size; to_string minimum_size; to_string (div maximum_size mib) ]))
+    let msg = Printf.sprintf "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" Int64.(proposed_size / mib) Int64.(minimum_size / mib) Int64.(maximum_size / mib) in
+    failwith msg
   end
 
 let create ?options ?(format=Qcow2) path size =
@@ -138,16 +142,7 @@ let info ?(format=Qcow2) path =
 let destroy vdi_path =
   try Unix.unlink vdi_path with _ -> ()
 
-let attach vdi_path read_write = {
-  Storage_interface.params = vdi_path;
-  xenstore_data = [ "format", "qcow2" ];
-}
-
 let detach device = ()
 
 let activate _ _ = ()
 let deactivate _ = ()
-
-let get_virtual_size path =
-  error "get_virtual_size unimplemented for qemu-img disks";
-  raise (Storage_interface.Backend_error("UNIMPLEMENTED", [ "qemu-img"; "get_virtual_size"]))

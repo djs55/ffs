@@ -11,7 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-
 let mount uri' =
   let uri = Uri.of_string uri' in
   match Uri.scheme uri with
@@ -54,3 +53,39 @@ let volume_of_file uri' filename =
       virtual_size = stats.st_size;
     }
   with _ -> None
+
+let illegal_names = [ ""; "."; ".." ]
+
+let mangle_name x : string =
+  if List.mem x illegal_names (* hopeless *)
+  then "unknown-volume"
+  else x
+
+let create uri' name kind =
+  let dir = mountpoint uri' in
+  let size = match kind with
+  | `New size -> size
+  | `Snapshot parent ->
+    let parent' = Qemu.info (Filename.concat dir parent) in
+    parent'.Qemu.disk_size in
+  let name = mangle_name name in
+  let name' = String.length name in
+  Qemu.check_size size;
+  (* Note: qemu won't fail if we give an existing filename. Caveat user! *)
+  let existing = ls uri' in
+  let largest_suffix =
+    existing
+    |>  (List.filter (Common.startswith name))
+    |>  (List.map (fun x -> String.sub x name' (String.length x - name')))
+    |>  (List.map (fun x -> try int_of_string x with _ -> 0))
+    |>  (List.fold_left max 0) in
+  let existing = ls uri' in
+  let name = if List.mem name existing then name ^ (string_of_int (largest_suffix + 1)) else name in
+  let path = Filename.concat dir name in
+  match kind with
+  | `New size ->
+    Qemu.create path size;
+    name
+  | `Snapshot parent ->
+    Qemu.snapshot path parent (* relative *) Qemu.Qcow2 size;
+    name

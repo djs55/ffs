@@ -1,0 +1,84 @@
+#!/usr/bin/env ocamlscript
+Ocaml.sources := ["common.ml"; "qemu.ml"; "fs.ml"];
+Ocaml.packs := ["xapi-storage"; "cmdliner"; "re.str"; "oUnit"; "uri"];
+Ocaml.ocamlflags := ["-thread"]
+--
+(*
+ * Copyright (C) Citrix Systems Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation; version 2.1 only. with the special
+ * exception on linking described in file LICENSE.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *)
+open Common
+
+module Command = struct
+  open Storage.V.Types
+  include Volume.Create
+
+  let command common { Volume.Create.In.dbg; sr; name; description; size } =
+    (* LVM refuses to create a disk with 0 extents *)
+    let size = max size 1L in
+    let name = Fs.create sr name (`New size) in
+    let mountpoint = Fs.mountpoint sr in
+    {
+      key = name;
+      name = name;
+      description = description;
+      read_write = true;
+      uri = ["file://" ^ (Filename.concat mountpoint name) ];
+      virtual_size = size;
+    }
+end
+
+module Test = struct
+  open OUnit
+(*
+  let test_lvcreate () =
+    let vol = Lvm.make_temp_volume () in
+    let vg_name = "hello" in
+    finally
+      (fun () ->
+        Lvm.vgcreate vg_name [ vol ];
+        let a = Lvm.lvcreate vg_name "testvol" (`New 1L) in
+        Lvm.lvremove vg_name a
+      ) (fun () ->
+        Lvm.vgremove vg_name;
+        Lvm.remove_temp_volume vol
+      )
+
+  let test_name_duplication () =
+    let vol = Lvm.make_temp_volume () in
+    let vg_name = "hello" in
+    finally
+      (fun () ->
+        Lvm.vgcreate vg_name [ vol ];
+        let a = Lvm.lvcreate vg_name "testvol" (`New 1L) in
+        let b = Lvm.lvcreate vg_name "testvol" (`New 1L) in
+        if a = b then failwith "created volumes with identical names";
+        Lvm.lvremove vg_name a;
+        Lvm.lvremove vg_name b
+     ) (fun () ->
+        Lvm.vgremove vg_name;
+        Lvm.remove_temp_volume vol
+     )
+*)
+
+  let test common =
+    let suite = "create" >::: [
+(*
+      "lvcreate" >:: test_lvcreate;
+      "lvcreate with identical names" >:: test_name_duplication;
+*)
+    ] in
+    ignore(run_test_tt ~verbose:common.Common.verbose suite)
+end
+
+module M = Make(Command)(Test)
+let _ = M.main ()
