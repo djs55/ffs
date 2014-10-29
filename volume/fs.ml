@@ -188,13 +188,16 @@ let create uri' name kind =
     Qemu.create path size;
     name
   | `Snapshot parent ->
+    (* Rename the existing parent to 'base' *)
     let base = choose_filename uri' (name ^ "-base") in
     Disk_tree.rename Qemu.Qcow2 dir parent base;
     Unix.rename (path_of uri' parent) (path_of uri' base);
-    Qemu.snapshot (path_of uri' name) base (* relative *) Qemu.Qcow2 size;
+    (* Replace the parent with a leaf *)
+    Qemu.snapshot (path_of uri' parent) base (* relative *) Qemu.Qcow2 size;
+    (* Create a snapshot leaf *)
     let snapshot = choose_filename uri' (name ^ "-snap") in
     Qemu.snapshot (path_of uri' snapshot) base (* relative *) Qemu.Qcow2 size;
-    Disk_tree.(write uri' base { children = [ name; snapshot ] });
+    Disk_tree.(write uri' base { children = [ parent; snapshot ] });
     snapshot
 
 let rm uri' name = Disk_tree.rm Qemu.Qcow2 uri' name
