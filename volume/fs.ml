@@ -178,7 +178,7 @@ let create uri' name kind =
   | `New size -> size
   | `Snapshot parent ->
     let parent' = Qemu.info (path_of uri' parent) in
-    parent'.Qemu.disk_size in
+    parent'.Qemu.virtual_size in
   let name = choose_filename uri' (mangle_name name) in
   Qemu.check_size size;
   (* Note: qemu won't fail if we give an existing filename. Caveat user! *)
