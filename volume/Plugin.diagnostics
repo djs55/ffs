@@ -1,3 +1,8 @@
+#!/usr/bin/env ocamlscript
+Ocaml.sources := ["common.ml"];
+Ocaml.packs := ["xapi-storage"; "cmdliner"; "re.str"; "oUnit"; "uri"];
+Ocaml.ocamlflags := ["-thread"]
+--
 (*
  * Copyright (C) Citrix Systems Inc.
  *
@@ -11,10 +16,21 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
+open Common
 
-val mount: string -> string -> unit
+module Command = struct
+  open Storage.P.Types
+  include Plugin.Diagnostics
 
-val umount: string -> unit
+  let command common { Plugin.Diagnostics.In.dbg } =
+    "Not yet implemented"
+end
 
-val mount_cmd: string ref
-val umount_cmd: string ref
+module Test = struct
+  open OUnit
+
+  let test common = ()
+end
+
+module M = Make(Command)(Test)
+let _ = M.main ()
