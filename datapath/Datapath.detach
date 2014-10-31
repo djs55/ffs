@@ -3,6 +3,7 @@
 import sys
 
 import xapi
+import xapi.xapi
 import xapi.d
 
 import argparse, json
@@ -26,4 +27,4 @@ if __name__ == "__main__":
         results = dispatcher.detach(request)
         print json.dumps(results)
     except Exception, e:
-        handle_exception(e)
+        xapi.xapi.handle_exception(e)
