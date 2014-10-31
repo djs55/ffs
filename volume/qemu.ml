@@ -13,7 +13,11 @@
  *)
 
 open Common
-open Int64
+
+type format =
+  | Vhd
+  | Raw
+  | Qcow2
 
 let qemu_img = ref "/usr/bin/qemu-img"
 
@@ -23,8 +27,8 @@ let string_of_format = function
   | Vhd -> "vdi"
 
 let kib = 1024L
-let mib = mul kib kib
-let gib = mul kib mib
+let mib = Int64.(kib * kib)
+let gib = Int64.(kib * mib)
 
 (* See RWMJ's blog: http://rwmj.wordpress.com/2011/10/03/maximum-qcow2-disk-size/ *)
 let maximum_size = 9223372036854774784L
@@ -33,8 +37,8 @@ let minimum_size = 0L
 
 let check_size proposed_size =
   if proposed_size < minimum_size || proposed_size > maximum_size then begin
-    error "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" (div proposed_size mib) (div minimum_size mib) (div maximum_size mib);
-    raise (Storage_interface.Backend_error("VDI_SIZE", [ to_string proposed_size; to_string minimum_size; to_string (div maximum_size mib) ]))
+    let msg = Printf.sprintf "Cannot create qcow2 with virtual_size = %Ld MiB (must be between %Ld MiB and %Ld MiB)" Int64.(proposed_size / mib) Int64.(minimum_size / mib) Int64.(maximum_size / mib) in
+    failwith msg
   end
 
 let create ?options ?(format=Qcow2) path size =
@@ -54,6 +58,24 @@ let resize ?(format=Qcow2) path new_virtual_size =
   let args = [ "resize"; "-f"; string_of_format format; path; Int64.to_string new_virtual_size ] in
   let (_: string) = run !qemu_img args in
   new_virtual_size
+
+(* It's quite hard to reliably parse the qemu-info, so we
+   read the backing file directly *)
+let qcow_magic = "QFI\xfb"
+let read_backing_file path =
+  let fd = Unix.openfile path [ Unix.O_RDONLY ] 0o0 in
+  finally
+    (fun () ->
+      let c = Unix_cstruct.of_fd fd in
+      let qcow_magic' = String.length qcow_magic in
+      let magic = Cstruct.(to_string (sub c 0 qcow_magic')) in
+      if magic <> qcow_magic then failwith "Failed to read qcow2 magic";
+      let backing_file_offset = Cstruct.BE.get_uint64 c 8 |> Int64.to_int in
+      let backing_file_length = Cstruct.BE.get_uint32 c 16 |> Int32.to_int in
+      if backing_file_length = 0
+      then None
+      else Some(Cstruct.(to_string (sub c backing_file_offset backing_file_length)))
+    ) (fun () -> Unix.close fd)
 
 let newline_regex = Re_str.regexp_string "\n"
 let colon_regex = Re_str.regexp ":[ ]*"
@@ -99,10 +121,6 @@ let info ?(format=Qcow2) path =
     if not(List.mem_assoc key table)
     then failwith (Printf.sprintf "failed to find '%s' in qemu-img info output" key)
     else List.assoc key table in
-  let find_opt key =
-    if not(List.mem_assoc key table)
-    then None
-    else Some (List.assoc key table) in
   let parse_size size =
     let fragments = Re_str.split_delim space_regex size in
     match List.fold_left (fun best_guess x ->
@@ -132,22 +150,13 @@ let info ?(format=Qcow2) path =
       virtual_size = parse_size (find _virtual_size);
       disk_size = parse_size (find _disk_size);
       cluster_size = Int64.of_string (find _cluster_size);
-      backing_file = find_opt _backing_file;
+      backing_file = read_backing_file path;
   }
 
 let destroy vdi_path =
   try Unix.unlink vdi_path with _ -> ()
 
-let attach vdi_path read_write = {
-  Storage_interface.params = vdi_path;
-  xenstore_data = [ "format", "qcow2" ];
-}
-
 let detach device = ()
 
 let activate _ _ = ()
 let deactivate _ = ()
-
-let get_virtual_size path =
-  error "get_virtual_size unimplemented for qemu-img disks";
-  raise (Storage_interface.Backend_error("UNIMPLEMENTED", [ "qemu-img"; "get_virtual_size"]))
