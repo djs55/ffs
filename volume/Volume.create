@@ -39,7 +39,7 @@ class Implementation(xapi.volume.Volume_skeleton):
             "description": description,
             "read_write": True,
             "virtual_size": size,
-            "uri": ["raw+file:/" + path ],
+            "uri": ["raw+file://" + path ],
         }
 
 if __name__ == "__main__":
