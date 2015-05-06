@@ -1,3 +1,7 @@
+trunk (unreleased)
+* Update to use raw files only
+* Replace OCaml code with python
+
 0.9.25 (2-Oct-2014)
 * Use ocaml-vhd rather than libvhd to avoid depending on Xen C headers
 * Use the new command-line interface
