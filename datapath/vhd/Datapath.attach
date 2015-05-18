@@ -2,7 +2,7 @@
 
 import sys, urlparse, os
 import xapi, xapi.datapath
-import tapdisk
+from xapi import tapdisk
 
 class Implementation(xapi.datapath.Datapath_skeleton):
     def attach(self, dbg, uri, domain):
