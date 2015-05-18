@@ -1,6 +1,6 @@
 DATAPATH_COMMANDS=Datapath.activate  Datapath.attach  Datapath.deactivate  Datapath.detach
 VOLUME_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach Volume.create Volume.destroy Volume.stat
-LIB_FILES=losetup.py tapdisk.py
+LIB_FILES=losetup.py tapdisk.py dmsetup.py
 
 .PHONY: clean
 clean:
