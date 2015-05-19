@@ -72,7 +72,10 @@ class DeviceMapper:
         return "/dev/mapper/%s" % self.name
 
 def find(dbg, base_device):
-    return DeviceMapper(dbg, base_device)
+    try:
+        return DeviceMapper(dbg, base_device)
+    except:
+        return None
 
 def create(dbg, base_device):
     try:
