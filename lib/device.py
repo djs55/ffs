@@ -28,6 +28,7 @@ class Device:
     def __init__(self, image):
         self.image = image
         self.block = None
+        self.tapdisk = None
         self.save()
 
     def block_device(self):
@@ -47,6 +48,30 @@ class Device:
                 raise "FIXME vhd"
         else:
             return self.block
+
+    def add_tapdisk(self, dbg):
+        if self.tapdisk is None:
+            self.tapdisk = tapdisk.create("")
+            self.tapdisk.open(dbg, self.image)
+            if self.dm is not None:
+                self.dm.suspend(dbg)
+                self.dm.reload(dbg, self.tapdisk.block_device())
+                self.dm.resume(dbg)
+                if self.loop is not None:
+                    self.loop.destroy(dbg)
+                    self.loop = None
+            self.block = self.dm.block_device()
+
+    def remove_tapdisk(self, dbg):
+        if self.tapdisk is not None:
+            if self.dm is not None:
+                self.dm.suspend(dbg)
+                if self.loop is None:
+                    self.loop = losetup.create(dbg, self.image.path)
+                self.dm.reload(dbg, self.loop.block_device())
+                self.dm.resume(dbg)
+                self.tapdisk.destroy(dbg)
+                self.tapdisk = None
 
     def destroy(self, dbg):
         if self.dm is not None:

@@ -17,6 +17,7 @@ class Tapdisk:
         self.pid = pid
         self.f = f
     def destroy(self, dbg):
+        run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
         run(dbg, "tap-ctl detach -m %d -p %d" % (self.minor, self.pid))
         run(dbg, "tap-ctl free -m %d" % (self.minor))
     def close(self, dbg):
