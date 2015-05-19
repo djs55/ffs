@@ -4,31 +4,10 @@ import os
 import signal
 import xapi
 import commands
-
-def log(txt):
-    print >>sys.stderr, txt
-
-# [run dbg cmd] executes [cmd], throwing a BackendError if exits with
-# a non-zero exit code.
-def run(dbg, cmd):
-    code, output = commands.getstatusoutput(cmd)
-    if code <> 0:
-        log("%s: %s exitted with code %d: %s" % (dbg, cmd, code, output))
-        raise (xapi.InternalError("%s exitted with non-zero code %d: %s" % (cmd, code, output)))
-    return output
+import image
+from common import log, run
 
 # Use Xen tapdisk to create block devices from files
-
-class Vhd:
-    def __init__(self, path):
-        self.path = path
-    def __str__(self):
-        return "vhd:" + self.path
-class Raw:
-    def __init__(self, path):
-        self.path = path
-    def __str__(self):
-        return "aio:" + self.path
 
 blktap2_prefix = "/dev/xen/blktap-2/tapdev"
 
@@ -38,13 +17,14 @@ class Tapdisk:
         self.pid = pid
         self.f = f
     def destroy(self, dbg):
+        run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
         run(dbg, "tap-ctl detach -m %d -p %d" % (self.minor, self.pid))
         run(dbg, "tap-ctl free -m %d" % (self.minor))
     def close(self, dbg):
         run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
         self.f = None
     def open(self, dbg, f):
-        assert (isinstance(f, Vhd) or isinstance(f, Raw))
+        assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
         run(dbg, "tap-ctl open -m %d -p %d -a %s" % (self.minor, self.pid, str(f)))
         self.f = f
     def block_device(self):
@@ -88,16 +68,16 @@ def list(dbg):
                 this = None
                 prefix = "aio:"
                 if args.startswith(prefix):
-                    this = Raw(args[len(prefix):])
+                    this = image.Raw(args[len(prefix):])
                     results.append(Tapdisk(minor, pid, this))
                 prefix = "vhd:"
                 if args.startswith(prefix):
-                    this = Vhd(args[len(prefix):])
+                    this = image.Vhd(args[len(prefix):])
                     results.append(Tapdisk(minor, pid, this))
     return results
 
 def find_by_file(dbg, f):
-    assert (isinstance(f, Vhd) or isinstance(f, Raw))
+    assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
     for tapdisk in list(dbg):
         if str(f) == str(tapdisk.f):
             return tapdisk

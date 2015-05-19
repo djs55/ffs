@@ -3,24 +3,9 @@
 import xapi
 import commands
 import fcntl, os, array, struct, sys
-
-def log(txt):
-    print >>sys.stderr, txt
-
-# [run dbg cmd] executes [cmd], throwing a BackendError if exits with
-# a non-zero exit code.
-def run(dbg, cmd):
-    code, output = commands.getstatusoutput(cmd)
-    if code <> 0:
-        log("%s: %s exitted with code %d: %s" % (dbg, cmd, code, output))
-        raise (xapi.InternalError("%s exitted with non-zero code %d: %s" % (cmd, code, output)))
-    return output
+from common import log, run
 
 # Use device mapper to suspend and resume block devices
-
-# VG_XenStorage--770cdfa8--ccbf--d209--46ed--72e8e65f926a-MGT: 0 8192 linear 8:3 118912
-
-# dmsetup create test --table "0 8192 linear 8:3 118912"
 
 def blkgetsize64(path):
     req = 0x80081272
@@ -87,7 +72,10 @@ class DeviceMapper:
         return "/dev/mapper/%s" % self.name
 
 def find(dbg, base_device):
-    return DeviceMapper(dbg, base_device)
+    try:
+        return DeviceMapper(dbg, base_device)
+    except:
+        return None
 
 def create(dbg, base_device):
     try:

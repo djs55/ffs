@@ -2,7 +2,7 @@
 
 import sys, urlparse, os
 import xapi, xapi.datapath
-from xapi import tapdisk
+from xapi import tapdisk, image
 
 class Implementation(xapi.datapath.Datapath_skeleton):
     def attach(self, dbg, uri, domain):
@@ -11,7 +11,7 @@ class Implementation(xapi.datapath.Datapath_skeleton):
         if not(os.path.exists(u.path)):
             raise xapi.volume.Volume_does_not_exist(u.path)
         tap = tapdisk.create(dbg)
-        tap.open(dbg, tapdisk.Vhd(u.path))
+        tap.open(dbg, image.Vhd(u.path))
         return {
             'domain_uuid': '0',
             'implementation': [ 'Blkback', tap.block_device() ],
