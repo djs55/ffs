@@ -39,8 +39,22 @@ def blkszget(path):
 
     logical_sector_size = ioctl_read_uint32(fd, BLKSSZGET)
 
-def free_name(dbg):
-    return "test"
+def name_of_device(device):
+    """For a given device path, compute a suitable device mapper name.
+       We wish it to be obvious which device mapper node corresponds to
+       which original device."""
+    dm = ""
+    for char in device:
+        char = char.lower ()
+        if ord(char) >= ord('a') and ord(char) <= ord('z'):
+            dm = dm + char
+        elif ord(char) >= ord('0') and ord(char) <= ord('9'):
+            dm = dm + char
+        elif char in [ '-', '+', '=' ]:
+            dm = dm + char 
+        else:
+            dm = dm + "_"
+    return dm
 
 def table(base_device):
     logical_sector_size = blkszget(base_device)
@@ -53,9 +67,16 @@ def table(base_device):
 
 class DeviceMapper:
     def __init__(self, dbg, base_device):
-        self.name = free_name(dbg)
+        self.name = name_of_device(base_device)
         t = table(base_device)
-        run(dbg, "dmsetup create %s --table \"%s\"" % (self.name, t))
+        existing = t
+        try:
+            existing = run(dbg, "dmsetup table %s 2> /dev/null" % self.name).strip()
+        except:
+            run(dbg, "dmsetup create %s --table \"%s\"" % (self.name, t))
+        if existing <> t:
+            log(dbg, "Device mapper device %s has table %s, expected %s" % (self.name, existing, t))
+            raise (xapi.InternalError("Device mapper device %s has unexpected table" % self.name))
 
     def suspend(self, dbg):
         run(dbg, "dmsetup suspend %s" % self.name)
