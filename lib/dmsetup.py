@@ -69,11 +69,7 @@ class DeviceMapper:
     def __init__(self, dbg, base_device):
         self.name = name_of_device(base_device)
         t = table(base_device)
-        existing = t
-        try:
-            existing = run(dbg, "dmsetup table %s 2> /dev/null" % self.name).strip()
-        except:
-            run(dbg, "dmsetup create %s --table \"%s\"" % (self.name, t))
+        existing = run(dbg, "dmsetup table %s 2> /dev/null" % self.name).strip()
         if existing <> t:
             log(dbg, "Device mapper device %s has table %s, expected %s" % (self.name, existing, t))
             raise (xapi.InternalError("Device mapper device %s has unexpected table" % self.name))
@@ -87,7 +83,15 @@ class DeviceMapper:
         run(dbg, "dmsetup reload %s --table \"%s\"" % (self.name, t))
     def destroy(self, dbg):
         run(dbg, "dmsetup remove %s" % self.name)
+    def block_device(self):
+        return "/dev/mapper/%s" % self.name
 
-def create(dbg, base_device):
+def find(dbg, base_device):
     return DeviceMapper(dbg, base_device)
 
+def create(dbg, base_device):
+    try:
+        return DeviceMapper(dbg, base_device)
+    except:
+        run(dbg, "dmsetup create %s --table \"%s\"" % (name_of_device(base_device), table(base_device)))
+        return DeviceMapper(dbg, base_device)

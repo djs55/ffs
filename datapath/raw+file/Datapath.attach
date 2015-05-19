@@ -2,7 +2,7 @@
 
 import sys, urlparse, os
 import xapi, xapi.datapath
-from xapi import losetup
+from xapi import losetup, dmsetup
 
 class Implementation(xapi.datapath.Datapath_skeleton):
     def attach(self, dbg, uri, domain):
@@ -10,10 +10,11 @@ class Implementation(xapi.datapath.Datapath_skeleton):
         # XXX need a datapath-specific error
         if not(os.path.exists(u.path)):
             raise xapi.volume.Volume_does_not_exist(u.path)
-        loopdev = losetup.add(dbg, u.path)
+        loop = losetup.create(dbg, u.path)
+        dm = dmsetup.create(dbg, loop.block_device())
         return {
             'domain_uuid': '0',
-            'implementation': [ 'Blkback', loopdev ],
+            'implementation': [ 'Blkback', dm.block_device() ],
         }
 
 if __name__ == "__main__":

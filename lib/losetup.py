@@ -17,8 +17,18 @@ def run(dbg, cmd):
 
 # Use Linux "losetup" to create block devices from files
 
-# [_find dbg path] returns the loop device associated with [path]
-def _find(dbg, path):
+class Loop:
+    """An active loop device"""
+    def __init__(self, path, loop):
+        self.path = path
+        self.loop = loop
+    def destroy(self, dbg):
+        run(dbg, "losetup -d %s" % self.loop)
+    def block_device(self):
+        return self.loop
+
+def find(dbg, path):
+    """Return the active loop device associated with the given path"""
     for line in run(dbg, "losetup -a").split("\n"):
         line = line.strip()
         if line <> "":
@@ -26,14 +36,11 @@ def _find(dbg, path):
             loop = bits[0][0:-1]
             this_path = bits[2][1:-1]
             if this_path == path:
-                return loop
+                return Loop(path, loop)
     return None
-# [add dbg path] creates a new loop device for [path] and returns it
-def add(dbg, path):
+
+def create(dbg, path):
+    """Creates a new loop device backed by the given file"""
     run(dbg, "losetup -f %s" % path)
-    return _find(dbg, path)
-# [remove dbg path] removes the loop device associated with [path]
-def remove(dbg, path):
-    loop = _find(dbg, path)
-    run(dbg, "losetup -d %s" % loop)
+    return find(dbg, path)
 

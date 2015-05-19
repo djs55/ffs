@@ -2,7 +2,7 @@
 
 import sys, urlparse, os
 import xapi, xapi.datapath
-from xapi import losetup
+from xapi import losetup, dmsetup
 
 class Implementation(xapi.datapath.Datapath_skeleton):
     def detach(self, dbg, uri, domain):
@@ -10,7 +10,10 @@ class Implementation(xapi.datapath.Datapath_skeleton):
         # XXX need a datapath-specific error
         if not(os.path.exists(u.path)):
             raise xapi.volume.Volume_does_not_exist(u.path)
-        losetup.remove(dbg, u.path)
+        loop = losetup.find(dbg, u.path)
+        dm = dmsetup.find(dbg, loop.block_device())
+        dm.destroy(dbg)
+        loop.destroy(dbg)
 
 if __name__ == "__main__":
     cmd = xapi.datapath.Datapath_commandline(Implementation())
