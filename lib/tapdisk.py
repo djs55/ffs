@@ -50,7 +50,8 @@ class Tapdisk:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(nbdclient_prefix + str(self.pid))
         token = "token"
-        fdsend.sendfds(sock, token, fds = [ sock ])
+        fdsend.sendfds(sock, token, fds = [ fd ])
+        sock.close()
         self.secondary = "nbd:" + token
         self.pause(dbg)
         self.unpause(dbg)
