@@ -9,8 +9,13 @@ import commands
 from common import log, run
 import image, losetup, dmsetup, tapdisk
 
+persist_root = "/tmp/persist"
+
 def path_to_persist(image):
-    return "/tmp/persist" + image.path
+    return persist_root + image.path
+
+def clear():
+    run("clear", "rm -rf %s" % persist_root)
 
 class Device:
     def save(self):
@@ -27,8 +32,10 @@ class Device:
 
     def __init__(self, image):
         self.image = image
+        self.loop = None
         self.block = None
         self.tapdisk = None
+        self.dm = None
         self.save()
 
     def block_device(self):
@@ -43,9 +50,14 @@ class Device:
                 if self.dm is None:
                     self.dm = dmsetup.create(dbg, self.loop.block_device())
                 self.block = self.dm.block_device ()
+                self.save()
                 return self.block
             elif isinstance(self.image, image.Vhd):
-                raise "FIXME vhd"
+                self.tapdisk = tapdisk.create(dbg)
+                self.tapdisk.open(dbg, self.image)
+                self.block = self.tapdisk.block_device()
+                self.save()
+                return self.block
         else:
             return self.block
 
@@ -61,8 +73,11 @@ class Device:
                     self.loop.destroy(dbg)
                     self.loop = None
             self.block = self.dm.block_device()
+            self.save()
 
     def remove_tapdisk(self, dbg):
+        if isinstance(self.image, image.Vhd):
+           return # not possible to remove a tapdisk
         if self.tapdisk is not None:
             if self.dm is not None:
                 self.dm.suspend(dbg)
@@ -72,6 +87,7 @@ class Device:
                 self.dm.resume(dbg)
                 self.tapdisk.destroy(dbg)
                 self.tapdisk = None
+                self.save()
 
     def destroy(self, dbg):
         if self.dm is not None:
@@ -80,7 +96,11 @@ class Device:
         if self.loop is not None:
             self.loop.destroy(dbg)
             self.loop = None
+        if self.tapdisk is not None:
+            self.tapdisk.destroy(dbg)
+            self.tapdisk = None
         self.block = None
+        self.save()
 
 def create(dbg, i):
     assert isinstance(i, image.Path)
