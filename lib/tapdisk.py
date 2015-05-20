@@ -2,6 +2,11 @@
 
 import os
 import signal
+import socket
+
+# from python-fdsend
+import fdsend
+
 import xapi
 import commands
 import image
@@ -11,15 +16,20 @@ from common import log, run
 
 blktap2_prefix = "/dev/xen/blktap-2/tapdev"
 
+nbdclient_prefix = "/var/run/blktap-control/nbdclient"
+
 class Tapdisk:
     def __init__(self, minor, pid, f):
         self.minor = minor
         self.pid = pid
         self.f = f
+        self.secondary = None # mirror destination
     def destroy(self, dbg):
-        run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
-        run(dbg, "tap-ctl detach -m %d -p %d" % (self.minor, self.pid))
-        run(dbg, "tap-ctl free -m %d" % (self.minor))
+        self.pause(dbg)
+        run(dbg, "tap-ctl destroy -m %d -p %d" % (self.minor, self.pid))
+        #run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
+        #run(dbg, "tap-ctl detach -m %d -p %d" % (self.minor, self.pid))
+        #run(dbg, "tap-ctl free -m %d" % (self.minor))
     def close(self, dbg):
         run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
         self.f = None
@@ -27,8 +37,27 @@ class Tapdisk:
         assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
         run(dbg, "tap-ctl open -m %d -p %d -a %s" % (self.minor, self.pid, str(f)))
         self.f = f
+    def pause(self, dbg):
+        run(dbg, "tap-ctl pause -m %d -p %d" % (self.minor, self.pid))
+    def unpause(self, dbg):
+        cmd = "tap-ctl unpause -m %d -p %d" % (self.minor, self.pid)
+        if self.secondary is not None:
+            cmd = cmd + " -2 " + self.secondary
+        run(dbg, cmd)
     def block_device(self):
         return blktap2_prefix + str(self.minor)
+    def start_mirror(self, dbg, fd):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(nbdclient_prefix + str(self.pid))
+        token = "token"
+        fdsend.sendfds(sock, token, fds = [ sock ])
+        self.secondary = "nbd:" + token
+        self.pause(dbg)
+        self.unpause(dbg)
+    def stop_mirror(self, dbg):
+        self.secondary = None
+        self.pause(dbg)
+        self.unpause(dbg)
 
 def create(dbg):
     output = run(dbg, "tap-ctl spawn").strip()

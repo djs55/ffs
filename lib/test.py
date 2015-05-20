@@ -7,6 +7,8 @@ import image
 import device
 import unittest
 import os
+import socket
+import struct
 import errno
 
 raw_path = "/tmp/test-raw-disk"
@@ -43,5 +45,15 @@ class Tests(unittest.TestCase):
         block = d.block_device()
         assert block is not None
         d.add_tapdisk("")
+        d.destroy("")
+
+    def test_mirror(self):
+        d = device.create("", image.Raw(raw_path))
+        block = d.block_device()
+        assert block is not None
+        d.add_tapdisk("")
+        a, b = socket.socketpair()
+        d.tapdisk.start_mirror("", a)
+        b.sendall('NBDMAGIC\x00\x00\x42\x02\x81\x86\x12\x53' + struct.pack('>Q', 1024*1024) + '\0'*128);
         d.destroy("")
 
