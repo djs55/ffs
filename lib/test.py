@@ -31,3 +31,17 @@ class Tests(unittest.TestCase):
     def test_raw(self):
         d = device.create("", image.Raw(raw_path))
         d.destroy("")
+
+    def test_raw_block(self):
+        d = device.create("", image.Raw(raw_path))
+        block = d.block_device()
+        assert block is not None
+        d.destroy("")
+
+    def test_raw_block_tapdisk(self):
+        d = device.create("", image.Raw(raw_path))
+        block = d.block_device()
+        assert block is not None
+        d.add_tapdisk("")
+        d.destroy("")
+
