@@ -17,6 +17,7 @@ from common import log, run
 blktap2_prefix = "/dev/xen/blktap-2/tapdev"
 
 nbdclient_prefix = "/var/run/blktap-control/nbdclient"
+nbdserver_prefix = "/var/run/blktap-control/nbdserver"
 
 class Tapdisk:
     def __init__(self, minor, pid, f):
@@ -59,6 +60,12 @@ class Tapdisk:
         self.secondary = None
         self.pause(dbg)
         self.unpause(dbg)
+    def receive_nbd(self, dbg, fd):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect("%s%d.%d" % (nbdserver_prefix, self.pid, self.minor))
+        token = "token"
+        fdsend.sendfds(sock, token, fds = [ fd ])
+        sock.close()
 
 def create(dbg):
     output = run(dbg, "tap-ctl spawn").strip()

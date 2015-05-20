@@ -57,3 +57,14 @@ class Tests(unittest.TestCase):
         b.sendall('NBDMAGIC\x00\x00\x42\x02\x81\x86\x12\x53' + struct.pack('>Q', 1024*1024) + '\0'*128);
         d.destroy("")
 
+    def test_nbd(self):
+        d = device.create("", image.Raw(raw_path))
+        block = d.block_device()
+        assert block is not None
+        d.add_tapdisk("")
+        a, b = socket.socketpair()
+        d.tapdisk.receive_nbd("", a)
+        results = b.recv(256)
+        self.assertEqual("NBDMAGIC", results[0:8])
+        d.destroy("")
+
