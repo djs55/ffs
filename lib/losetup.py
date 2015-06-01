@@ -30,6 +30,6 @@ def find(dbg, path):
 
 def create(dbg, path):
     """Creates a new loop device backed by the given file"""
-    run(dbg, "losetup -f %s" % path)
+    run(dbg, "losetup -f \"%s\"" % path)
     return find(dbg, path)
 
