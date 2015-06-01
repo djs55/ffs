@@ -8,12 +8,12 @@ class Implementation(xapi.volume.Volume_skeleton):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
             raise xapi.volume.Sr_not_attached(sr)
-        u = urlparse.urlparse(key)
-        if not(os.path.exists(u.path)):
-            raise xapi.volume.Volume_does_not_exist(key)
-        path = u.path
-        tmp = u.path + ".tmp." + str(os.getpid())
-        code = subprocess.call([ "cp", "--reflink=always", u.path, tmp])
+        path = os.path.join(u.path, key)
+        if not(os.path.exists(path)):
+            raise xapi.volume.Volume_does_not_exist(path)
+        path = path
+        tmp = path + ".tmp." + str(os.getpid())
+        code = subprocess.call([ "cp", "--reflink=always", path, tmp])
         if code <> 0:
             raise xapi.volume.Unimplemented("Does this filesystem support reflinks?")
         base = os.path.basename(path)
