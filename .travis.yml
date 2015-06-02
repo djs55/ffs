@@ -1,7 +1,8 @@
 language: python
 python:
   - "2.7"
-# command to install dependencies
-# install: "pip install -r requirements.txt"
-# command to run tests
-script: make test
+system_site_packages: true
+script: 
+  - pep8 --show-source --show-pep8 lib datapath volume
+  - pylint lib datapath volume
+  - nosetests
