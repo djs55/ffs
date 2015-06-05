@@ -3,6 +3,7 @@
 #   run 'nosetests' in the root of the repository
 
 from common import log, run
+import iscsi
 import image
 import device
 import unittest
@@ -67,4 +68,16 @@ class Tests(unittest.TestCase):
         results = b.recv(256)
         self.assertEqual("NBDMAGIC", results[0:8])
         d.destroy("")
+
+class SessionTests(unittest.TestCase):
+    # unittest.TestCase has more methods than Pylint permits
+    # pylint: disable=R0904
+
+    def test_parse(self):
+        x = iscsi.Session("tcp: [9] 10.0.0.1:3260,1 iqn.2004-04.com.qnap:ts-859uplus:iscsi.foo01.000000 (non-flash)")
+        assert x.proto == "tcp"
+        assert x.index == 9
+        assert x.ip == "10.0.0.1"
+        assert x.port == 3260
+        assert x.iqn == "iqn.2004-04.com.qnap:ts-859uplus:iscsi.foo01.000000"
 
