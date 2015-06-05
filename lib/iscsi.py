@@ -53,4 +53,4 @@ class Initiator:
         return map(lambda x:Session(x), run(dbg, "iscsiadm -m session").split("\n"))
 
     def discover(self, dbg, address):
-        return map(lambda x:Target(x), run(dbg, "iscsiadm --mode discoverydb --type sendtargets --portal %s --discover" % address))
+        return map(lambda x:Target(x), run(dbg, "iscsiadm --mode discoverydb --type sendtargets --portal %s --discover" % address).split("\n"))
