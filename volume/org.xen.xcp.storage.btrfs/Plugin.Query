@@ -7,7 +7,7 @@ class Implementation(xapi.plugin.Plugin_skeleton):
     def query(self, dbg):
         return {
             "plugin": "btrfs",
-            "name": "Local btrfs filesystem Volume plugin";
+            "name": "Local btrfs filesystem Volume plugin",
             "description": "This plugin creates a btrfs filesystem on a locla block device",
             "vendor": "None",
             "copyright": "(C) 2015 Citrix Inc",
