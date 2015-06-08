@@ -15,5 +15,6 @@ install:
 	(cd datapath/raw+file; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/raw+file)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs
 	(cd volume/org.xen.xcp.storage.ffs; install -m 0755 $(VOLUME_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs)
+	(cd volume/org.xen.xcp.storage.btrfs; install -m 0755 $(VOLUME_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.btrfs)
 	mkdir -p $(DESTDIR)$(PYTHONDIR)
 	(cd lib; install -m 0755 $(LIB_FILES) $(DESTDIR)$(PYTHONDIR)/)
