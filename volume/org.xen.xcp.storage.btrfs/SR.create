@@ -7,8 +7,9 @@ class Implementation(xapi.volume.SR_skeleton):
     def create(self, dbg, uri, configuration):
         u = urlparse.urlparse(uri)
         # this would be a good place to run mkfs
-        code = subprocess.call([ "mkfs.btrfs", u.path ])
-        if code <> 0:
+        p = subprocess.Popen([ "mkfs.btrfs", u.path, "-f"], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        stdout, stderr = p.communicate ()
+        if p.returncode <> 0:
             raise xapi.volume.Unimplemented("mkfs.btrfs failed on %s"  % u.path)
         return
 
