@@ -11,6 +11,15 @@ class Implementation(xapi.volume.Volume_skeleton):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
             raise xapi.volume.Sr_not_attached(sr)
+        # sanitise characters used in the volume name
+        sanitised = ""
+        for c in name:
+            if c == os.sep or c in [ "<", ">", ":", "\"", "/", "\"", "|", "?", "*" ]:
+                sanitised = sanitised + "_"
+            else:
+                sanitised = sanitised + c
+        if sanitised == "":
+            sanitised = "unknown"
         # attempt to create a key based on the name
         counter = 0
         path = None
@@ -18,9 +27,9 @@ class Implementation(xapi.volume.Volume_skeleton):
         fd = None
         while key is None:
             try:
-                filename = name
+                filename = sanitised
                 if counter > 0:
-                  filename = "%s.%d" % (name, counter)
+                  filename = "%s.%d" % (sanitised, counter)
                 path = os.path.join(u.path, filename)
                 fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                 key = filename

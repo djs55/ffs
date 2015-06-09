@@ -5,7 +5,7 @@ import errno
 import pickle
 import xapi
 import commands
-from common import log, run
+from common import log, call
 
 """
 Use "nbd-tool" to mirror disks between servers.
@@ -17,7 +17,7 @@ def path_to_persist(mirror):
     return persist_root + mirror.pid
 
 def clear():
-    run("clear", "rm -rf %s" % persist_root)
+    call("clear", ["rm", "-rf", persist_foor ])
 
 class Mirror:
     """An active nbd mirror"""

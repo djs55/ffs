@@ -10,7 +10,7 @@ import fdsend
 import xapi
 import commands
 import image
-from common import log, run
+from common import log, call
 
 # Use Xen tapdisk to create block devices from files
 
@@ -27,24 +27,21 @@ class Tapdisk:
         self.secondary = None # mirror destination
     def destroy(self, dbg):
         self.pause(dbg)
-        run(dbg, "tap-ctl destroy -m %d -p %d" % (self.minor, self.pid))
-        #run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
-        #run(dbg, "tap-ctl detach -m %d -p %d" % (self.minor, self.pid))
-        #run(dbg, "tap-ctl free -m %d" % (self.minor))
+        call(dbg, ["tap-ctl", "destroy", "-m", str(self.minor), "-p", str(self.pid) ])
     def close(self, dbg):
-        run(dbg, "tap-ctl close -m %d -p %d" % (self.minor, self.pid))
+        call(dbg, ["tap-ctl", "close", "-m", str(self.minor), "-p", str(self.pid) ])
         self.f = None
     def open(self, dbg, f):
         assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
-        run(dbg, "tap-ctl open -m %d -p %d -a %s" % (self.minor, self.pid, str(f)))
+        call(dbg, ["tap-ctl", "open", "-m", str(self.minor), "-p", str(self.pid), "-a", str(f)])
         self.f = f
     def pause(self, dbg):
-        run(dbg, "tap-ctl pause -m %d -p %d" % (self.minor, self.pid))
+        call(dbg, ["tap-ctl", "pause", "-m", str(self.minor), "-p", str(self.pid)])
     def unpause(self, dbg):
-        cmd = "tap-ctl unpause -m %d -p %d" % (self.minor, self.pid)
+        cmd = ["tap-ctl", "unpause", "-m", str(self.minor), "-p", str(self.pid) ]
         if self.secondary is not None:
-            cmd = cmd + " -2 " + self.secondary
-        run(dbg, cmd)
+            cmd = cmd + [ "-2 ", self.secondary ]
+        call(dbg, cmd)
     def block_device(self):
         return blktap2_prefix + str(self.minor)
     def start_mirror(self, dbg, fd):
@@ -68,9 +65,9 @@ class Tapdisk:
         sock.close()
 
 def create(dbg):
-    output = run(dbg, "tap-ctl spawn").strip()
+    output = call(dbg, ["tap-ctl", "spawn"]).strip()
     pid = int(output)
-    output = run(dbg, "tap-ctl allocate").strip()
+    output = call(dbg, ["tap-ctl", "allocate"]).strip()
     prefix = blktap2_prefix
     minor = None
     if output.startswith(prefix):
@@ -78,12 +75,12 @@ def create(dbg):
     if minor is None:
         os.kill(pid, signal.SIGQUIT)
         raise (xapi.InternalError("tap-ctl allocate returned unexpected output: '%s'" % output))
-    run(dbg, "tap-ctl attach -m %d -p %d" % (minor, pid))
+    call(dbg, ["tap-ctl", "attach", "-m", str(minor), "-p", str(pid) ])
     return Tapdisk(minor, pid, None)
 
 def list(dbg):
     results = []
-    for line in run(dbg, "tap-ctl list").split("\n"):
+    for line in call(dbg, ["tap-ctl", "list"]).split("\n"):
         bits = line.split()
         if bits == []:
             continue

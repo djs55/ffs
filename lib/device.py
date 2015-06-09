@@ -6,7 +6,7 @@ import signal
 import pickle
 import xapi
 import commands
-from common import log, run
+from common import log, call
 import image, losetup, dmsetup, tapdisk
 
 persist_root = "/tmp/persist"
@@ -15,7 +15,7 @@ def path_to_persist(image):
     return persist_root + image.path
 
 def clear():
-    run("clear", "rm -rf %s" % persist_root)
+    call("clear", ["rm", "-rf", persist_root])
 
 class Device:
     def save(self):
