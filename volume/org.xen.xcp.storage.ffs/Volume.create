@@ -14,7 +14,7 @@ class Implementation(xapi.volume.Volume_skeleton):
         # sanitise characters used in the volume name
         sanitised = ""
         for c in name:
-            if c == os.sep or c in [ "<", ">", ":", "\"", "/", "\"", "|", "?", "*" ]
+            if c == os.sep or c in [ "<", ">", ":", "\"", "/", "\"", "|", "?", "*" ]:
                 sanitised = sanitised + "_"
             else:
                 sanitised = sanitised + c
