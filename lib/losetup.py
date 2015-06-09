@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os.path
 import xapi
 import commands
 from common import log, run
@@ -30,6 +31,8 @@ def find(dbg, path):
 
 def create(dbg, path):
     """Creates a new loop device backed by the given file"""
+    # losetup will resolve paths and 'find' needs to use string equality
+    path = os.path.realpath(path)
+
     run(dbg, "losetup -f \"%s\"" % path)
     return find(dbg, path)
-
