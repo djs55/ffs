@@ -18,6 +18,8 @@ class Implementation(xapi.volume.Volume_skeleton):
                 sanitised = sanitised + "_"
             else:
                 sanitised = sanitised + c
+        if sanitised == "":
+            sanitised = "unknown"
         # attempt to create a key based on the name
         counter = 0
         path = None
