@@ -33,7 +33,7 @@ class Tapdisk:
         self.f = None
     def open(self, dbg, f):
         assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
-        call(dbg, ["tap-ctl", "open", "-m", str(self.minor), "-p", str(self.pid), "-a", str(f))
+        call(dbg, ["tap-ctl", "open", "-m", str(self.minor), "-p", str(self.pid), "-a", str(f)])
         self.f = f
     def pause(self, dbg):
         call(dbg, ["tap-ctl", "pause", "-m", str(self.minor), "-p", str(self.pid)])
