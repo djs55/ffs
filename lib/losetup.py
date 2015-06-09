@@ -3,7 +3,7 @@
 import os.path
 import xapi
 import commands
-from common import log, run
+from common import log, call
 
 # Use Linux "losetup" to create block devices from files
 
@@ -13,13 +13,13 @@ class Loop:
         self.path = path
         self.loop = loop
     def destroy(self, dbg):
-        run(dbg, "losetup -d %s" % self.loop)
+        call(dbg, ["losetup", "-d", self.loop ])
     def block_device(self):
         return self.loop
 
 def find(dbg, path):
     """Return the active loop device associated with the given path"""
-    for line in run(dbg, "losetup -a").split("\n"):
+    for line in call(dbg, ["losetup", "-a"]).split("\n"):
         line = line.strip()
         if line <> "":
             bits = line.split()
@@ -34,5 +34,5 @@ def create(dbg, path):
     # losetup will resolve paths and 'find' needs to use string equality
     path = os.path.realpath(path)
 
-    run(dbg, "losetup -f \"%s\"" % path)
+    call(dbg, ["losetup", "-f", path ])
     return find(dbg, path)

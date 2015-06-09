@@ -6,7 +6,7 @@ import socket
 
 import xapi
 import commands
-from common import log, run
+from common import log, call
 
 import unittest
 """
@@ -50,7 +50,7 @@ class Initiator:
         pass
 
     def get_sessions(self, dbg):
-        return map(lambda x:Session(x), run(dbg, "iscsiadm -m session").split("\n"))
+        return map(lambda x:Session(x), call(dbg, ["iscsiadm", "-m", "session"]).split("\n"))
 
     def discover(self, dbg, address):
-        return map(lambda x:Target(x), run(dbg, "iscsiadm --mode discoverydb --type sendtargets --portal %s --discover" % address).split("\n"))
+        return map(lambda x:Target(x), call(dbg, ["iscsiadm", "--mode", "discoverydb", "--type", "sendtargets", "--portal", address, "--discover"]).split("\n"))

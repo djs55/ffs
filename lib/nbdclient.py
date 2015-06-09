@@ -5,7 +5,7 @@ import errno
 import pickle
 import xapi
 import commands
-from common import log, run
+from common import log, call
 
 """
 Use Linux "nbd-client" to create block devices from NBD servers.
@@ -25,7 +25,7 @@ def path_to_persist(nbd):
     return persist_root + nbd.nbd
 
 def clear():
-    run("clear", "rm -rf %s" % persist_root)
+    call("clear", ["rm", "-rf", persist_root ])
 
 class Nbd:
     """An active nbd device"""
@@ -44,7 +44,7 @@ class Nbd:
         with open(path, 'w') as f:
             pickle.dump(self, f)
     def destroy(self, dbg):
-        run(dbg, "nbd-client -d /dev/%s" % self.nbd)
+        call(dbg, ["nbd-client", "-d", "/dev/%s" % self.nbd])
         os.unlink(path_to_persist(self))
     def block_device(self):
         return self.nbd
@@ -85,7 +85,7 @@ def create(dbg, host, name):
     all = set(filter(lambda x:x.startswith("nbd"), os.listdir("/dev")))
     for nbd in all.difference(used):
         #try:
-            run(dbg, "nbd-client %s /dev/%s -name %s" % (host, nbd, name))
+            call(dbg, ["nbd-client", host, "/dev/" + nbd, "-name", name ])
             return Nbd(host, name, nbd)
         #except:
         #    pass # try another one
