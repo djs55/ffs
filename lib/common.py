@@ -5,6 +5,7 @@ import sys
 import signal
 import xapi
 import commands
+import subprocess
 
 def log(txt):
     print >>sys.stderr, txt
