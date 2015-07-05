@@ -47,7 +47,7 @@ Configuration
 An SR may be created via the XenAPI as follows:
 
 ```
-xe sr-create type=ffs name-label="My new FFS SR" device-config:path=/usr/share/xapi/images
+xe sr-create type=ffs name-label="My new FFS SR" device-config:uri=/usr/share/xapi/images
 ```
 
 
