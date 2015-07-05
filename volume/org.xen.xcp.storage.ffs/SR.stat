@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+
+import urlparse
+import os
+import xapi
+import xapi.volume
+
+
+class Implementation(xapi.volume.SR_skeleton):
+
+    def stat(self, dbg, sr):
+        u = urlparse.urlparse(sr)
+        virtual_allocation = 0
+        for fpath in os.listdir(u.path):
+            fpath = os.path.join(u.path, fpath)
+            if os.path.isfile(fpath):
+                virtual_allocation += os.stat(fpath).st_size
+        statvfs = os.statvfs(u.path)
+        physical_size = statvfs.f_blocks * statvfs.f_frsize
+        free_size = statvfs.f_bfree * statvfs.f_frsize
+        physical_utilisation = physical_size - free_size
+        return {
+            "virtual_allocation": virtual_allocation,
+            "physical_utilisation": physical_utilisation,
+            "physical_size": physical_size}
+
+if __name__ == "__main__":
+    cmd = xapi.volume.SR_commandline(Implementation())
+    cmd.stat()
