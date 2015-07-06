@@ -1,6 +1,12 @@
-trunk (unreleased)
-* Update to use raw files only
-* Replace OCaml code with python
+
+0.12 (6-Jul-2015)
+* install the vhd datapath
+* fix typo in btrfs Plugin.Query
+* partial implementation of SR.stat for ffs and btrfs
+* fix the README example
+* implement Volume.snapshot
+* fix losetup following symlinks problem
+* fix losetup filenames containing spaces problem
 
 0.9.25 (2-Oct-2014)
 * Use ocaml-vhd rather than libvhd to avoid depending on Xen C headers
