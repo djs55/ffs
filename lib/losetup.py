@@ -19,6 +19,9 @@ class Loop:
 
 def find(dbg, path):
     """Return the active loop device associated with the given path"""
+    # The kernel loop driver will transparently follow symlinks, so
+    # we must too.
+    path = os.path.realpath(path)
     for line in call(dbg, ["losetup", "-a"]).split("\n"):
         line = line.strip()
         if line <> "":
