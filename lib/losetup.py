@@ -27,7 +27,9 @@ def find(dbg, path):
         if line <> "":
             bits = line.split()
             loop = bits[0][0:-1]
-            this_path = bits[2][1:-1]
+            open_bracket = line.find('(')
+            close_bracket = line.find(')')
+            this_path = line[open_bracket+1:close_bracket]
             if this_path == path:
                 return Loop(path, loop)
     return None
