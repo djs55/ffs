@@ -32,15 +32,7 @@ class Implementation(xapi.volume.Volume_skeleton):
             except OSError as e:
                 # ToDo: we ought to raise something more meaningful here
                 raise
-            size = os.stat(path).st_size
-        return {
-            "key": key,
-            "name": key,
-            "description": "",
-            "read_write": True,
-            "virtual_size": size,
-            "uri": ["raw+file://" + path]
-        }
+        return {}
 
 if __name__ == "__main__":
     cmd = xapi.volume.Volume_commandline(Implementation())
