@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+import xapi
+import xapi.plugin
+
+
+class Implementation(xapi.plugin.Plugin_skeleton):
+
+    def query(self, dbg):
+        return {
+            "plugin": "rawnfs",
+            "name": "NFS Raw Volume plugin",
+            "description": ("This plugin attaches a remote NFS and puts "
+                            "raw files onto it."),
+            "vendor": "None",
+            "copyright": "(C) 2016 Citrix Inc",
+            "version": "0.1",
+            "required_api_version": "0.1",
+            "features": [
+                "SR_ATTACH",
+                "SR_DETACH",
+                "SR_CREATE",
+                "VDI_CREATE",
+                "VDI_DESTROY",
+                "VDI_ATTACH",
+                "VDI_DETACH",
+                "VDI_ACTIVATE",
+                "VDI_DEACTIVATE"
+                "VDI_RESIZE"],
+            "configuration": {}}
+
+if __name__ == "__main__":
+    cmd = xapi.plugin.Plugin_commandline(Implementation())
+    cmd.query()
