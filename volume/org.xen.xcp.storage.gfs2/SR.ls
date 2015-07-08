@@ -13,7 +13,7 @@ class Implementation(xapi.volume.SR_skeleton):
         for filename in os.listdir(u.path):
             path = os.path.join(u.path, filename)
             if filename[-4:] == ".vhd":
-                type = "vhd"
+                type = "vhd+file"
                 cmd = ["/usr/bin/vhd-util", "query", "-n", path, "-v"]
                 stdout = call(dbg, cmd)
                 size = str(int(stdout)*1048576)

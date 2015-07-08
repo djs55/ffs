@@ -14,10 +14,11 @@ PYTHONDIR?=/usr/lib/python2.7/site-packages/xapi
 
 .PHONY: install
 install:
-	mkdir -p $(DESTDIR)$(SCRIPTDIR)/datapath/raw+file
-	(cd datapath/raw+file; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/raw+file)
-	mkdir -p $(DESTDIR)$(SCRIPTDIR)/datapath/vhd
-	(cd datapath/vhd; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/vhd)
+	mkdir -p $(DESTDIR)$(SCRIPTDIR)/datapath/loop+blkback
+	(cd datapath/loop+blkback; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/loop+blkback)
+	mkdir -p $(DESTDIR)$(SCRIPTDIR)/datapath/tapdisk
+	(cd datapath/tapdisk; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/tapdisk)
+	(cd $(DESTDIR)$(SCRIPTDIR)/datapath ; ln -sf tapdisk raw+file ; ln -sf tapdisk vhd+file)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs
 	(cd volume/org.xen.xcp.storage.ffs; install -m 0755 $(FFS_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.btrfs
