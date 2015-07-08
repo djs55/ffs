@@ -9,7 +9,6 @@ class Implementation(xapi.volume.SR_skeleton):
     def detach(self, dbg, sr):
         u = urlparse.urlparse(sr)
         call(dbg, [ "umount", u.path ])
-        return
 
 if __name__ == "__main__":
     cmd = xapi.volume.SR_commandline(Implementation())

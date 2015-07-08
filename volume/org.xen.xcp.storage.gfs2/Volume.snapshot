@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+
+import sys, urlparse, os, errno
+import xapi, xapi.volume
+from common import Lock
+from xapi.common import call
+
+class Implementation(xapi.volume.Volume_skeleton):
+    def snapshot(self, dbg, sr, key):
+        u = urlparse.urlparse(sr)
+        if not(os.path.isdir(u.path)):
+            raise xapi.volume.Sr_not_attached(sr)
+        path = os.path.join(u.path, key)
+        if not(os.path.exists(path)):
+            raise xapi.volume.Volume_does_not_exist(path)
+
+        if key[-4:] == ".vhd":
+            key_noext = key[:-4]
+        else:
+            raise Exception("Unsupported volume type (non-vhd)")
+
+        with Lock(os.path.join(u.path, "%s.lock" % key_noext)):
+            counter = 0
+            key_base = None
+            while key_base is None:
+                if counter > 0:
+                    filename = "%s_base.%d.vhd" % (key_noext, counter)
+                else:
+                    filename = "%s_base.vhd" % key_noext
+                path_base = os.path.join(u.path, filename)
+                try:
+                    fd = os.open(path_base, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                    key_base = filename
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
+                    counter = counter + 1
+            os.close(fd)
+
+            counter = 0
+            key_snap = None
+            while key_snap is None:
+                if counter > 0:
+                    filename = "%s_snap.%d.vhd" % (key_noext, counter)
+                else:
+                    filename = "%s_snap.vhd" % key_noext
+                path_snap = os.path.join(u.path, filename)
+                try:
+                    fd = os.open(path_snap, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                    key_snap = filename
+                except:
+                    if e.errno != errno.EEXIST:
+                        raise
+                    counter = counter + 1
+            os.close(fd)
+
+            os.rename(path, path_base)
+
+            cmd = ["/usr/bin/vhd-util", "snapshot", "-n", path, "-p", path_base]
+            try:
+                call(dbg, cmd)
+            except:
+                os.unlink(path_snap)
+                os.rename(path_base, path)
+                raise
+
+            cmd = ["/usr/bin/vhd-util", "snapshot", "-n", path_snap, "-p", path_base]
+            try:
+                call(dbg, cmd)
+            except:
+                os.unlink(path_snap)
+                os.rename(path_base, path)
+                raise
+
+        cmd = ["/usr/bin/vhd-util", "query", "-n", path_snap, "-v"]
+        stdout = call(dbg, cmd)
+        size = str(int(stdout)*1048576)
+
+        key = "file://" + path_snap
+        return {
+            "key": key_snap,
+            "name": key_snap,
+            "description": "",
+            "read_write": True,
+            "virtual_size": size,
+            "uri": ["vhd+file://" + path_snap ]
+        }
+
+if __name__ == "__main__":
+    cmd = xapi.volume.Volume_commandline(Implementation())
+    cmd.snapshot()
