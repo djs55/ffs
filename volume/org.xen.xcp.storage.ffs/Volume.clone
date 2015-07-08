@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, urlparse, subprocess, os
+import sys, urlparse, subprocess, os, json
 import xapi, xapi.volume
 
 class Implementation(xapi.volume.Volume_skeleton):
@@ -11,6 +11,15 @@ class Implementation(xapi.volume.Volume_skeleton):
         path = os.path.join(u.path, key)
         if not(os.path.exists(path)):
             raise xapi.volume.Volume_does_not_exist(path)
+
+        name = ""
+        description = ""
+        if os.path.exists(path + ".json"):
+            with open(path + ".json", "r") as fd:
+                js = json.load(fd)
+                name = js["name"]
+                description = js["description"]
+
         path = path
         tmp = path + ".tmp." + str(os.getpid())
         code = subprocess.call([ "cp", "--reflink=always", path, tmp])
@@ -44,10 +53,14 @@ class Implementation(xapi.volume.Volume_skeleton):
         stat = os.stat(new_name)
         key = os.path.basename(new_name)
         size = stat.st_size
+
+        with open(new_name + ".json", "w") as json_fd:
+            json.dump({ "name": name, "description": description }, json_fd) 
+
         return {
             "key": key,
-            "name": key,
-            "description": "",
+            "name": name,
+            "description": description,
             "read_write": True,
             "virtual_size": size,
             "uri": ["raw+file://" + new_name ]
