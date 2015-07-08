@@ -42,7 +42,7 @@ class Implementation(xapi.volume.Volume_skeleton):
                     raise
 
         stat = os.stat(new_name)
-        key = "file://" + new_name
+        key = os.path.basename(new_name)
         size = stat.st_size
         return {
             "key": key,
