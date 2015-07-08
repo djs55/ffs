@@ -7,11 +7,17 @@ from xapi import tapdisk, image
 class Implementation(xapi.datapath.Datapath_skeleton):
     def attach(self, dbg, uri, domain):
         u = urlparse.urlparse(uri)
-        # XXX need a datapath-specific error
+        # XXX need some datapath-specific errors below
         if not(os.path.exists(u.path)):
             raise xapi.volume.Volume_does_not_exist(u.path)
+        if u.scheme[:3] == "vhd":
+            img = image.Vhd(u.path)
+        elif u.scheme[:3] == "raw":
+            img = image.Raw(u.path)
+        else:
+            raise
         tap = tapdisk.create(dbg)
-        tap.open(dbg, image.Vhd(u.path))
+        tap.open(dbg, img)
         return {
             'domain_uuid': '0',
             'implementation': [ 'Blkback', tap.block_device() ],
