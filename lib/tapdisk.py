@@ -111,7 +111,7 @@ def list(dbg):
     return results
 
 def find_by_file(dbg, f):
-    assert (isinstance(f, image.Vhd) or isinstance(f, image.Raw))
+    assert (isinstance(f, image.Path))
     for tapdisk in list(dbg):
-        if str(f) == str(tapdisk.f):
+        if f.path == tapdisk.f.path:
             return tapdisk
