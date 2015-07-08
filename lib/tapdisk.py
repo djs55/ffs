@@ -5,7 +5,7 @@ import signal
 import socket
 
 # from python-fdsend
-import fdsend
+# import fdsend
 
 import xapi
 import commands
