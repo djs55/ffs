@@ -20,7 +20,7 @@ class Implementation(xapi.datapath.Datapath_skeleton):
         tap.open(dbg, img)
         return {
             'domain_uuid': '0',
-            'implementation': [ 'Blkback', tap.block_device() ],
+            'implementation': [ 'Tapdisk3', tap.block_device() ],
         }
 
 if __name__ == "__main__":
