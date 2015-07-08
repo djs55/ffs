@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+
+import sys, urlparse, os, errno
+import xapi, xapi.volume
+from xapi.common import call
+
+class Implementation(xapi.volume.Volume_skeleton):
+    def create(self, dbg, sr, name, description, size):
+        # Ensure path is mounted
+        u = urlparse.urlparse(sr)
+        if not(os.path.isdir(u.path)):
+            raise xapi.volume.Sr_not_attached(sr)
+
+        # Round up size to nearest MiB
+        size = int(size)
+        size_mib = size/1048576
+        if size % 1048576 != 0:
+            size_mib = size_mib + 1
+
+        # Sanitise characters used in the volume name
+        sanitised = ""
+        for c in name:
+            if c == os.sep or c in [ "<", ">", ":", "\"", "/", "\"", "|", "?", "*" ]:
+                sanitised = sanitised + "_"
+            else:
+                sanitised = sanitised + c
+        if sanitised == "":
+            sanitised = "unknown"
+
+        # Attempt to create a key based on the name
+        counter = 0
+        path = None
+        key = None
+        fd = None
+        while key is None:
+            try:
+                filename = "%s.vhd" % sanitised
+                if counter > 0:
+                  filename = "%s.%d.vhd" % (sanitised, counter)
+                path = os.path.join(u.path, filename)
+                fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                key = filename
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+                counter = counter + 1
+        os.close(fd)
+
+        cmd = ["/usr/bin/vhd-util", "create", "-n", path, "-s", str(size_mib)]
+        call(dbg, cmd)
+
+        return {
+            "key": key,
+            "name": name,
+            "description": description,
+            "read_write": True,
+            "virtual_size": size,
+            "uri": ["vhd://" + path ],
+        }
+
+if __name__ == "__main__":
+    cmd = xapi.volume.Volume_commandline(Implementation())
+    cmd.create()
