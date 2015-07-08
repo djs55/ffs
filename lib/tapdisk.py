@@ -102,16 +102,17 @@ def list(dbg):
                 this = None
                 prefix = "aio:"
                 if args.startswith(prefix):
-                    this = image.Raw(args[len(prefix):])
+                    this = image.Raw(os.path.realpath(args[len(prefix):]))
                     results.append(Tapdisk(minor, pid, this))
                 prefix = "vhd:"
                 if args.startswith(prefix):
-                    this = image.Vhd(args[len(prefix):])
+                    this = image.Vhd(os.path.realpath(args[len(prefix):]))
                     results.append(Tapdisk(minor, pid, this))
     return results
 
 def find_by_file(dbg, f):
     assert (isinstance(f, image.Path))
+    path = os.path.realpath(f.path)
     for tapdisk in list(dbg):
-        if f.path == tapdisk.f.path:
+        if path == tapdisk.f.path:
             return tapdisk
