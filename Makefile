@@ -18,7 +18,7 @@ install:
 	(cd datapath/loop+blkback; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/loop+blkback)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/datapath/tapdisk
 	(cd datapath/tapdisk; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/tapdisk)
-	(cd $(DESTDIR)$(SCRIPTDIR)/datapath ; ln -sf tapdisk raw+file ; ln -sf tapdisk vhd+file)
+	(cd $(DESTDIR)$(SCRIPTDIR)/datapath ; ln -snf tapdisk raw+file ; ln -snf tapdisk vhd+file)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs
 	(cd volume/org.xen.xcp.storage.ffs; install -m 0755 $(FFS_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.btrfs
