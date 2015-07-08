@@ -13,6 +13,8 @@ class Implementation(xapi.volume.SR_skeleton):
             if filename.endswith(".json"):
                 continue
             path = os.path.join(u.path, filename)
+            if not(os.path.isfile(os.path.realpath(path))):
+                continue
             name = filename
             description = filename
             if os.path.exists(path + ".json"):
