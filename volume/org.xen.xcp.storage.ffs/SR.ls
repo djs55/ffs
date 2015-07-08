@@ -12,13 +12,15 @@ class Implementation(xapi.volume.SR_skeleton):
         for filename in os.listdir(u.path):
             path = os.path.join(u.path, filename)
             stat = os.stat(path)
-            size = stat.st_size
+            virtual_size = stat.st_size
+            physical_utilisation = stat.st_blocks*512
             results.append({
                 "key": filename,
                 "name": filename,
                 "description": "",
                 "read_write": True,
-                "virtual_size": size,
+                "virtual_size": virtual_size,
+                "physical_utilisation": physical_utilisation,
                 "uri": ["raw+file:///" + path]
             })
         return results

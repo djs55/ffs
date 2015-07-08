@@ -10,13 +10,15 @@ class Implementation(xapi.volume.Volume_skeleton):
         if not(os.path.exists(path)):
             raise xapi.volume.Volume_does_not_exist(key)
         stat = os.stat(path)
-        size = stat.st_size
+        virtual_size = stat.st_size
+        physical_utilisation = stat.st_blocks*512
         return {
             "key": key,
             "name": key,
             "description": "",
             "read_write": True,
-            "virtual_size": size,
+            "virtual_size": virtual_size,
+            "physical_utilisation": physical_utilisation,
             "uri": ["raw+file://" + path ]
         }
 

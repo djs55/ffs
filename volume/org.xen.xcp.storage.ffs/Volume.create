@@ -42,12 +42,16 @@ class Implementation(xapi.volume.Volume_skeleton):
             os.lseek(fd, size - 1, os.SEEK_SET)
             os.write(fd, "\000")
         os.close(fd)
+        stat = os.stat(path)
+        virtual_size = stat.st_size
+        physical_utilisation = stat.st_blocks*512
         return {
             "key": key,
             "name": name,
             "description": description,
             "read_write": True,
-            "virtual_size": size,
+            "virtual_size": virtual_size,
+            "physical_utilisation": physical_utilisation,
             "uri": ["raw+file://" + path ],
         }
 
