@@ -10,7 +10,7 @@ class Implementation(xapi.datapath.Datapath_skeleton):
         # XXX need a datapath-specific error
         if not(os.path.exists(u.path)):
             raise xapi.volume.Volume_does_not_exist(u.path)
-        tap = tapdisk.find_by_file(dbg, image.Vhd(u.path))
+        tap = tapdisk.find_by_file(dbg, image.Path(u.path))
         tap.close(dbg)
         tap.destroy(dbg)
 

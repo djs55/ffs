@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-import os
+import os, os.path
 
 class Path:
     """An entity on the filesystem"""
     def __init__(self, path):
-        self.path = path
+        self.path = os.path.realpath(path)
 
 class Vhd(Path):
     """An entity on the filesystem in vhd format"""
