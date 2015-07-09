@@ -1,7 +1,7 @@
 DATAPATH_COMMANDS=Datapath.activate  Datapath.attach  Datapath.deactivate  Datapath.detach
 FFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize Volume.set_name Volume.set_description
 BTRFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description
-RAWNFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.resize common.py Volume.set_name Volume.set_description
+RAWNFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description
 GFS2_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.snapshot common.py Volume.set_name Volume.set_description
 LIB_FILES=losetup.py tapdisk.py dmsetup.py nbdclient.py nbdtool.py image.py common.py
 
@@ -11,6 +11,7 @@ clean:
 DESTDIR?=/
 SCRIPTDIR?=/usr/libexec/xapi-storage-script
 PYTHONDIR?=/usr/lib/python2.7/site-packages/xapi
+XAPIPLUGINDIR?=/etc/xapi.d/plugins/
 
 .PHONY: install
 install:
@@ -29,3 +30,5 @@ install:
 	(cd volume/org.xen.xcp.storage.gfs2; install -m 0755 $(GFS2_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.gfs2)
 	mkdir -p $(DESTDIR)$(PYTHONDIR)
 	(cd lib; install -m 0755 $(LIB_FILES) $(DESTDIR)$(PYTHONDIR)/)
+	mkdir -p $(DESTDIR)$(XAPIPLUGINDIR)
+	install -m 0755 overlay/$(XAPIPLUGINDIR)/ffs $(DESTDIR)$(XAPIPLUGINDIR)/ffs

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import sys, urlparse, subprocess, os, json
-import xapi, xapi.volume
+import urlparse, subprocess, os, json
+import xapi, xapi.volume, xapi.image, xapi.poolhelper
 
 class Implementation(xapi.volume.Volume_skeleton):
     def clone(self, dbg, sr, key):
@@ -22,9 +22,16 @@ class Implementation(xapi.volume.Volume_skeleton):
 
         path = path
         tmp = path + ".tmp." + str(os.getpid())
-        code = subprocess.call([ "cp", "--reflink=always", path, tmp])
-        if code <> 0:
-            raise xapi.volume.Unimplemented("Does this filesystem support reflinks?")
+        # both cp --reflink and cp may require that the image is quiesced
+        xapi.poolhelper.suspend_datapath_in_pool(dbg, path)
+        try:
+            code = subprocess.call(["cp", "--reflink=always", path, tmp])
+            if code != 0:
+                code = subprocess.call(["cp", path, tmp])
+                if code != 0:
+                    raise xapi.volume.Unimplemented("Copy failed?")
+        finally:
+            xapi.poolhelper.resume_datapath_in_pool(dbg, path)
         base = os.path.basename(path)
         finished = False
         highest_int = -1
@@ -55,7 +62,7 @@ class Implementation(xapi.volume.Volume_skeleton):
         size = stat.st_size
 
         with open(new_name + ".json", "w") as json_fd:
-            json.dump({ "name": name, "description": description }, json_fd) 
+            json.dump({ "name": name, "description": description }, json_fd)
 
         return {
             "key": key,
