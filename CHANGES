@@ -1,4 +1,4 @@
-0.15 (8-Jul-2015)
+0.16 (9-Jul-2015)
 * report VDI space utilisation
 * implement VDI.snapshot for GFS2
 * SR.ls: don't include directories
