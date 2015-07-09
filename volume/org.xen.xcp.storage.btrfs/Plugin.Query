@@ -11,8 +11,8 @@ class Implementation(xapi.plugin.Plugin_skeleton):
             "description": "This plugin creates a btrfs filesystem on a local block device",
             "vendor": "None",
             "copyright": "(C) 2015 Citrix Inc",
-            "version": "0.1",
-            "required_api_version": "0.1",
+            "version": "3.0",
+            "required_api_version": "3.0",
             "features": ["SR_ATTACH", "SR_DETACH", "SR_CREATE", "VDI_CREATE", "VDI_DESTROY", "VDI_ATTACH", "VDI_DETACH", "VDI_ACTIVATE", "VDI_DEACTIVATE", "VDI_CLONE", "VDI_SNAPSHOT", "VDI_RESIZE"],
             "configuration": {}
         }

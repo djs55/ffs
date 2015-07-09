@@ -63,6 +63,7 @@ class Implementation(xapi.volume.Volume_skeleton):
             "description": description,
             "read_write": True,
             "virtual_size": size,
+            "physical_utilisation": 0L,
             "uri": ["raw+file://" + new_name ]
         }
 
