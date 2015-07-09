@@ -1,6 +1,7 @@
 0.17 (10-Jul-2015)
 * fix import bug
 * bump version number
+* fix Volume.clone and Volume.snapshot, broken in 0.16
 
 0.16 (9-Jul-2015)
 * report VDI space utilisation
