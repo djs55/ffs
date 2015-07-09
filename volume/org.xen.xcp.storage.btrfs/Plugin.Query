@@ -13,7 +13,7 @@ class Implementation(xapi.plugin.Plugin_skeleton):
             "copyright": "(C) 2015 Citrix Inc",
             "version": "3.0",
             "required_api_version": "3.0",
-            "features": ["SR_ATTACH", "SR_DETACH", "SR_CREATE", "VDI_CREATE", "VDI_DESTROY", "VDI_ATTACH", "VDI_DETACH", "VDI_ACTIVATE", "VDI_DEACTIVATE", "VDI_CLONE", "VDI_SNAPSHOT", "VDI_RESIZE"],
+            "features": ["SR_ATTACH", "SR_DETACH", "SR_CREATE", "VDI_CREATE", "VDI_DESTROY", "VDI_ATTACH", "VDI_DETACH", "VDI_ACTIVATE", "VDI_DEACTIVATE", "VDI_CLONE", "VDI_SNAPSHOT", "VDI_RESIZE", "SR_METADATA"],
             "configuration": {}
         }
 

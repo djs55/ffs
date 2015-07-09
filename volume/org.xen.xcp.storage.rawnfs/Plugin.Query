@@ -20,6 +20,7 @@ class Implementation(xapi.plugin.Plugin_skeleton):
                 "SR_ATTACH",
                 "SR_DETACH",
                 "SR_CREATE",
+                "SR_METADATA",
                 "VDI_CREATE",
                 "VDI_DESTROY",
                 "VDI_ATTACH",
