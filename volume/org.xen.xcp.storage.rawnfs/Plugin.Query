@@ -14,8 +14,8 @@ class Implementation(xapi.plugin.Plugin_skeleton):
                             "raw files onto it."),
             "vendor": "None",
             "copyright": "(C) 2016 Citrix Inc",
-            "version": "0.1",
-            "required_api_version": "0.1",
+            "version": "3.0",
+            "required_api_version": "3.0",
             "features": [
                 "SR_ATTACH",
                 "SR_DETACH",
