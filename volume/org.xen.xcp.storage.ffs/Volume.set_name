@@ -16,7 +16,7 @@ class Implementation(xapi.volume.Volume_skeleton):
         description = ""
         if os.path.exists(path + ".json"):
             with open(path + ".json", "r") as json_fd:
-                js = json.loads(json_fd)
+                js = json.load(json_fd)
                 name = js["name"]
                 description = js["description"]
 
