@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+import XenAPI
+import XenAPIPlugin
+from xapi import dmsetup, losetup, tapdisk, image
+
+
+def suspend_datapath(session, args):
+    # ToDo: add debug context
+    dbg = None
+    loop = losetup.find(dbg, args['path'])
+    if loop:
+        dm = dmsetup.find(dbg, loop.block_device())
+        dm.suspend(dbg)
+    tap = tapdisk.find_by_file(dbg, image.Path(args['path']))
+    if tap:
+        tap.pause(dbg)
+    return "True"
+
+
+def resume_datapath(session, args):
+    # ToDo: add debug context
+    dbg = None
+    loop = losetup.find(dbg, args['path'])
+    if loop:
+        dm = dmsetup.find(dbg, loop.block_device())
+        dm.resume(dbg)
+    tap = tapdisk.find_by_file(dbg, image.Path(args['path']))
+    if tap:
+        tap.unpause(dbg)
+    return "True"
+
+
+if __name__ == "__main__":
+    XenAPIPlugin.dispatch({
+        'suspend_datapath': suspend_datapath,
+        'resume_datapath': resume_datapath})
