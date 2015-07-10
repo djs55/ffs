@@ -6,8 +6,8 @@ sudo: false
 install:
   - pip install pep8 --use-mirrors
   #- pip install pylint --use-mirrors
-  - pip install nose --use-mirrors
+  #- pip install nose --use-mirrors
 script:
   - pep8 --show-source --show-pep8 -r .
   #- pylint lib datapath volume
-  - nosetests
+  #- nosetests
