@@ -95,19 +95,15 @@ def list(dbg):
         if len(bits) <= 3:
             results.append(Tapdisk(minor, pid, None))
         else:
-            prefix = "args="
-            args = None
-            if bits[3].startswith(prefix):
-                args = bits[3][len(prefix):]
-                this = None
-                prefix = "aio:"
-                if args.startswith(prefix):
-                    this = image.Raw(os.path.realpath(args[len(prefix):]))
-                    results.append(Tapdisk(minor, pid, this))
-                prefix = "vhd:"
-                if args.startswith(prefix):
-                    this = image.Vhd(os.path.realpath(args[len(prefix):]))
-                    results.append(Tapdisk(minor, pid, this))
+            before, args = line.split("args=")
+            prefix = "aio:"
+            if args.startswith(prefix):
+                this = image.Raw(os.path.realpath(args[len(prefix):]))
+                results.append(Tapdisk(minor, pid, this))
+            prefix = "vhd:"
+            if args.startswith(prefix):
+                this = image.Vhd(os.path.realpath(args[len(prefix):]))
+                results.append(Tapdisk(minor, pid, this))
     return results
 
 def find_by_file(dbg, f):
