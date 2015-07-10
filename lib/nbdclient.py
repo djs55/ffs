@@ -21,14 +21,19 @@ Note:
 
 persist_root = "/tmp/persist-nbd/"
 
+
 def path_to_persist(nbd):
     return persist_root + nbd.nbd
 
+
 def clear():
-    call("clear", ["rm", "-rf", persist_root ])
+    call("clear", ["rm", "-rf", persist_root])
+
 
 class Nbd:
+
     """An active nbd device"""
+
     def __init__(self, host, name, nbd):
         self.host = host
         self.name = name
@@ -40,18 +45,24 @@ class Nbd:
         except OSError as exc:
             if exc.errno == errno.EEXIST and os.path.isdir(to_create):
                 pass
-            else: raise 
+            else:
+                raise
         with open(path, 'w') as f:
             pickle.dump(self, f)
+
     def destroy(self, dbg):
         call(dbg, ["nbd-client", "-d", "/dev/%s" % self.nbd])
         os.unlink(path_to_persist(self))
+
     def block_device(self):
         return self.nbd
 
+
 class NoAvailableNbd(Exception):
+
     def __init__(self):
         Exception.__init__(self)
+
 
 def find(dbg, host, name):
     """Return the active nbd device associated with the given name"""
@@ -61,13 +72,15 @@ def find(dbg, host, name):
     except OSError as exc:
         if exc.errno == errno.ENOENT:
             pass
-        else: raise
+        else:
+            raise
     for filename in used:
         with open(persist_root + filename) as file:
             nbd = pickle.load(file)
             if nbd.name == name:
                 return nbd
     return None
+
 
 def create(dbg, host, name):
     """Return an active nbd device associated with the given name,
@@ -81,12 +94,13 @@ def create(dbg, host, name):
     except OSError as exc:
         if exc.errno == errno.ENOENT:
             pass
-        else: raise
-    all = set(filter(lambda x:x.startswith("nbd"), os.listdir("/dev")))
+        else:
+            raise
+    all = set(filter(lambda x: x.startswith("nbd"), os.listdir("/dev")))
     for nbd in all.difference(used):
-        #try:
-            call(dbg, ["nbd-client", host, "/dev/" + nbd, "-name", name ])
-            return Nbd(host, name, nbd)
-        #except:
+        # try:
+        call(dbg, ["nbd-client", host, "/dev/" + nbd, "-name", name])
+        return Nbd(host, name, nbd)
+        # except:
         #    pass # try another one
     raise NoAvailableNbd()

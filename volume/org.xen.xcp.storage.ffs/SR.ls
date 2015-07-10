@@ -1,9 +1,16 @@
 #!/usr/bin/env python
 
-import sys, urlparse, os, os.path, json
-import xapi, xapi.volume
+import sys
+import urlparse
+import os
+import os.path
+import json
+import xapi
+import xapi.volume
+
 
 class Implementation(xapi.volume.SR_skeleton):
+
     def ls(self, dbg, sr):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
@@ -24,7 +31,7 @@ class Implementation(xapi.volume.SR_skeleton):
                     description = js["description"]
             stat = os.stat(path)
             virtual_size = stat.st_size
-            physical_utilisation = stat.st_blocks*512
+            physical_utilisation = stat.st_blocks * 512
             results.append({
                 "key": filename,
                 "name": name,

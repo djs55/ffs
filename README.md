@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/xapi-project/ffs.svg?branch=master)](https://travis-ci.org/xapi-project/ffs)
+
 Flat File Storage (FFS)
 -----------------------
 
