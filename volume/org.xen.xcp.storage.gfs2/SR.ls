@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 
-import sys, urlparse, os, os.path
-import xapi, xapi.volume
+import sys
+import urlparse
+import os
+import os.path
+import xapi
+import xapi.volume
 from xapi.common import call
 
+
 class Implementation(xapi.volume.SR_skeleton):
+
     def ls(self, dbg, sr):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
@@ -16,7 +22,7 @@ class Implementation(xapi.volume.SR_skeleton):
                 type = "vhd+file"
                 cmd = ["/usr/bin/vhd-util", "query", "-n", path, "-v"]
                 stdout = call(dbg, cmd)
-                size = str(int(stdout)*1048576)
+                size = str(int(stdout) * 1048576)
             else:
                 type = "raw+file"
                 stat = os.stat(path)

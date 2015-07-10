@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 
-import sys, urlparse, os, errno
-import xapi, xapi.volume
+import sys
+import urlparse
+import os
+import errno
+import xapi
+import xapi.volume
 from common import Lock
 from xapi.common import call
 
+
 class Implementation(xapi.volume.Volume_skeleton):
+
     def snapshot(self, dbg, sr, key):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
@@ -29,7 +35,8 @@ class Implementation(xapi.volume.Volume_skeleton):
                     filename = "%s_base.vhd" % key_noext
                 path_base = os.path.join(u.path, filename)
                 try:
-                    fd = os.open(path_base, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                    fd = os.open(
+                        path_base, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                     key_base = filename
                 except OSError as e:
                     if e.errno != errno.EEXIST:
@@ -46,7 +53,8 @@ class Implementation(xapi.volume.Volume_skeleton):
                     filename = "%s_snap.vhd" % key_noext
                 path_snap = os.path.join(u.path, filename)
                 try:
-                    fd = os.open(path_snap, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                    fd = os.open(
+                        path_snap, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                     key_snap = filename
                 except:
                     if e.errno != errno.EEXIST:
@@ -56,7 +64,8 @@ class Implementation(xapi.volume.Volume_skeleton):
 
             os.rename(path, path_base)
 
-            cmd = ["/usr/bin/vhd-util", "snapshot", "-n", path, "-p", path_base]
+            cmd = ["/usr/bin/vhd-util", "snapshot",
+                   "-n", path, "-p", path_base]
             try:
                 call(dbg, cmd)
             except:
@@ -64,7 +73,8 @@ class Implementation(xapi.volume.Volume_skeleton):
                 os.rename(path_base, path)
                 raise
 
-            cmd = ["/usr/bin/vhd-util", "snapshot", "-n", path_snap, "-p", path_base]
+            cmd = ["/usr/bin/vhd-util", "snapshot",
+                   "-n", path_snap, "-p", path_base]
             try:
                 call(dbg, cmd)
             except:
@@ -74,7 +84,7 @@ class Implementation(xapi.volume.Volume_skeleton):
 
         cmd = ["/usr/bin/vhd-util", "query", "-n", path_snap, "-v"]
         stdout = call(dbg, cmd)
-        size = str(int(stdout)*1048576)
+        size = str(int(stdout) * 1048576)
 
         key = "file://" + path_snap
         return {
@@ -83,7 +93,7 @@ class Implementation(xapi.volume.Volume_skeleton):
             "description": "",
             "read_write": True,
             "virtual_size": size,
-            "uri": ["vhd+file://" + path_snap ]
+            "uri": ["vhd+file://" + path_snap]
         }
 
 if __name__ == "__main__":

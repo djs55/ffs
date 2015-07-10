@@ -7,17 +7,24 @@ import pickle
 import xapi
 import commands
 from common import log, call
-import image, losetup, dmsetup, tapdisk
+import image
+import losetup
+import dmsetup
+import tapdisk
 
 persist_root = "/tmp/persist"
+
 
 def path_to_persist(image):
     return persist_root + image.path
 
+
 def clear():
     call("clear", ["rm", "-rf", persist_root])
 
+
 class Device:
+
     def save(self):
         path = path_to_persist(self.image)
         to_create = os.path.dirname(path)
@@ -26,7 +33,8 @@ class Device:
         except OSError as exc:
             if exc.errno == errno.EEXIST and os.path.isdir(to_create):
                 pass
-            else: raise
+            else:
+                raise
         with open(path, "w") as f:
             pickle.dump(self, f)
 
@@ -49,7 +57,7 @@ class Device:
                 self.dm = dmsetup.find(dbg, self.loop.block_device())
                 if self.dm is None:
                     self.dm = dmsetup.create(dbg, self.loop.block_device())
-                self.block = self.dm.block_device ()
+                self.block = self.dm.block_device()
                 self.save()
                 return self.block
             elif isinstance(self.image, image.Vhd):
@@ -77,7 +85,7 @@ class Device:
 
     def remove_tapdisk(self, dbg):
         if isinstance(self.image, image.Vhd):
-           return # not possible to remove a tapdisk
+            return  # not possible to remove a tapdisk
         if self.tapdisk is not None:
             if self.dm is not None:
                 self.dm.suspend(dbg)
@@ -101,6 +109,7 @@ class Device:
             self.tapdisk = None
         self.block = None
         self.save()
+
 
 def create(dbg, i):
     assert isinstance(i, image.Path)

@@ -1,14 +1,19 @@
 #!/usr/bin/env python
 
 from common import mountpoint_root
-import sys, urlparse, os.path
-import xapi, xapi.volume
+import sys
+import urlparse
+import os.path
+import xapi
+import xapi.volume
 from xapi.common import call
 
+
 class Implementation(xapi.volume.SR_skeleton):
+
     def detach(self, dbg, sr):
         u = urlparse.urlparse(sr)
-        call(dbg, [ "umount", u.path ])
+        call(dbg, ["umount", u.path])
 
 if __name__ == "__main__":
     cmd = xapi.volume.SR_commandline(Implementation())
