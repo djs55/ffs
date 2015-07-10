@@ -2,11 +2,8 @@
 
 import os
 import errno
-import signal
 import pickle
-import xapi
-import commands
-from common import log, call
+from common import call
 import image
 import losetup
 import dmsetup

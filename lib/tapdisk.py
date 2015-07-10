@@ -2,15 +2,13 @@
 
 import os
 import signal
-import socket
 
 # from python-fdsend
 # import fdsend
 
 import xapi
-import commands
 import image
-from common import log, call
+from common import call
 
 # Use Xen tapdisk to create block devices from files
 
@@ -73,6 +71,8 @@ class Tapdisk:
     def block_device(self):
         return blktap2_prefix + str(self.minor)
 
+    """
+    ToDo: fdsend needs to be imported
     def start_mirror(self, dbg, fd):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(nbdclient_prefix + str(self.pid))
@@ -82,18 +82,22 @@ class Tapdisk:
         self.secondary = "nbd:" + token
         self.pause(dbg)
         self.unpause(dbg)
+    """
 
     def stop_mirror(self, dbg):
         self.secondary = None
         self.pause(dbg)
         self.unpause(dbg)
 
+    """
+    ToDo: fdsend needs to be imported
     def receive_nbd(self, dbg, fd):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect("%s%d.%d" % (nbdserver_prefix, self.pid, self.minor))
         token = "token"
         fdsend.sendfds(sock, token, fds=[fd])
         sock.close()
+    """
 
 
 def create(dbg):
