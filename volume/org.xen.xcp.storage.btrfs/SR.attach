@@ -24,10 +24,11 @@ class Implementation(xapi.volume.SR_skeleton):
                 pass
             else:
                 raise
-        code = subprocess.call(["mount", "-t", "btrfs", u.path, mountpoint])
-        if code != 0:
-            raise xapi.volume.Unimplemented(
-                "mount -t btrfs %s %s failed" % (u.path, mountpoint))
+        if not os.path.ismount(mountpoint):
+            code = subprocess.call(["mount", "-t", "btrfs", u.path, mountpoint])
+            if code != 0:
+                raise xapi.volume.Unimplemented(
+                    "mount -t btrfs %s %s failed" % (u.path, mountpoint))
         uri = "file://" + mountpoint
         return uri
 
