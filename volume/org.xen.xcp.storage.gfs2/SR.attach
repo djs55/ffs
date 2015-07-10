@@ -35,9 +35,10 @@ class Implementation(xapi.volume.SR_skeleton):
                 pass
             else:
                 raise
-        cmd = ["mount", "-t", "gfs2", "-o",
-               "noatime,nodiratime", u.path, mountpoint]
-        call(dbg, cmd)
+        if not os.path.ismount(mountpoint):
+            cmd = ["mount", "-t", "gfs2", "-o",
+                   "noatime,nodiratime", u.path, mountpoint]
+            call(dbg, cmd)
 
         uri = "file://" + mountpoint
         return uri
