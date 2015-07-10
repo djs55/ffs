@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
-from common import mountpoint_root
-import sys
 import urlparse
-import os.path
 import xapi
 import xapi.volume
 from xapi.common import call

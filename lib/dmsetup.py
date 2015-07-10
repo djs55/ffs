@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
 import xapi
-import commands
 import fcntl
 import os
 import array
 import struct
-import sys
 from common import log, call
 
 # Use device mapper to suspend and resume block devices
@@ -15,7 +13,6 @@ from common import log, call
 def blkgetsize64(path):
     req = 0x80081272
     buf = ' ' * 8
-    fmt = 'L'
     with open(path) as dev:
         buf = fcntl.ioctl(dev.fileno(), req, buf)
     return struct.unpack('L', buf)[0]
@@ -27,8 +24,6 @@ def blkszget(path):
     with open(path) as dev:
         fcntl.ioctl(dev.fileno(), req, buf)
     return struct.unpack('I', buf)[0]
-
-    logical_sector_size = ioctl_read_uint32(fd, BLKSSZGET)
 
 
 def name_of_device(device):
@@ -66,12 +61,10 @@ class DeviceMapper:
         t = table(base_device)
         existing = call(dbg, ["dmsetup", "table", self.name]).strip()
         if existing != t:
-            log(dbg, "Device mapper device %s has table %s, expected %s" %
-                (self.name, existing, t))
-            raise xapi.InternalError("%s exitted with non-zero code %d: %s"
-                                     % (" ".join(cmd_args),
-                                        p.returncode,
-                                        stderr))
+            message = ("Device mapper device %s has table %s, expected %s" %
+                       (self.name, existing, t))
+            log(dbg, message)
+            raise xapi.InternalError(message)
 
     def suspend(self, dbg):
         call(dbg, ["dmsetup", "suspend", self.name])

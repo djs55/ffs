@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 import os
+import signal
 import errno
 import pickle
-import xapi
-import commands
-from common import log, call
 
 """
 Use "nbd-tool" to mirror disks between servers.
@@ -17,9 +15,11 @@ persist_root = "/tmp/persist-nbdtool/"
 def path_to_persist(mirror):
     return persist_root + mirror.pid
 
-
+"""
+ToDo: what is persist_foor?
 def clear():
     call("clear", ["rm", "-rf", persist_foor])
+"""
 
 
 class Mirror:
@@ -72,7 +72,8 @@ def create(dbg, primary, secondary):
     existing = find(dbg, primary, secondary)
     if existing:
         return existing
-    used = set()
+    """
+    TODO: spawn nbd-client
     try:
         used = set(os.listdir(persist_root))
     except OSError as exc:
@@ -80,5 +81,5 @@ def create(dbg, primary, secondary):
             pass
         else:
             raise
-    # TODO: spawn nbd-client
+    """
     raise "Unimplemented"

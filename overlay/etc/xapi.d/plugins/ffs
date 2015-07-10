@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import XenAPI
 import XenAPIPlugin
 from xapi import dmsetup, losetup, tapdisk, image
 

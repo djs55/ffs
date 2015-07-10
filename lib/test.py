@@ -2,7 +2,6 @@
 #   install the 'python-nose' package (Fedora/CentOS or Ubuntu)
 #   run 'nosetests' in the root of the repository
 
-from common import log, call
 import iscsi
 import image
 import device

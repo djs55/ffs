@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import sys
 import xapi
 import xapi.plugin
 
@@ -11,7 +10,8 @@ class Implementation(xapi.plugin.Plugin_skeleton):
         return {
             "plugin": "btrfs",
             "name": "Local btrfs filesystem Volume plugin",
-            "description": "This plugin creates a btrfs filesystem on a local block device",
+            "description": ("This plugin creates a btrfs filesystem on a local"
+                            " block device"),
             "vendor": "None",
             "copyright": "(C) 2015 Citrix Inc",
             "version": "3.0",
