@@ -3,7 +3,7 @@ FFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attac
 BTRFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description
 RAWNFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description
 GFS2_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.snapshot common.py Volume.set_name Volume.set_description
-LIB_FILES=losetup.py tapdisk.py dmsetup.py nbdclient.py nbdtool.py image.py common.py
+LIB_FILES=losetup.py tapdisk.py dmsetup.py nbdclient.py nbdtool.py image.py common.py poolhelper.py
 
 .PHONY: clean
 clean:

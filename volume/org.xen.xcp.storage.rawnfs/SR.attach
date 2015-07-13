@@ -22,12 +22,13 @@ class Implementation(xapi.volume.SR_skeleton):
                 pass
             else:
                 raise
-        cmd = ["mount", "-t", "nfs",
-               "-o", "acdirmin=0,acdirmax=0",
-               u.netloc + ":" + u.path, mountpoint]
-        code = subprocess.call(cmd)
-        if code != 0:
-            raise xapi.volume.Unimplemented(" ".join(cmd) + " failed")
+        if not os.path.ismount(mountpoint):
+            cmd = ["mount", "-t", "nfs",
+                   "-o", "acdirmin=0,acdirmax=0",
+                   u.netloc + ":" + u.path, mountpoint]
+            code = subprocess.call(cmd)
+            if code != 0:
+                raise xapi.volume.Unimplemented(" ".join(cmd) + " failed")
         uri = "file://" + mountpoint
         return uri
 

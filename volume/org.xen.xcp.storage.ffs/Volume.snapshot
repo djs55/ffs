@@ -1,9 +1,16 @@
 #!/usr/bin/env python
 
-import urlparse, subprocess, os
-import xapi, xapi.volume, xapi.poolhelper
+import errno
+import urlparse
+import subprocess
+import os
+import xapi
+import xapi.volume
+import xapi.poolhelper
+
 
 class Implementation(xapi.volume.Volume_skeleton):
+
     def snapshot(self, dbg, sr, key):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
@@ -29,10 +36,13 @@ class Implementation(xapi.volume.Volume_skeleton):
         new_name = path
         while not finished:
             # Keep trying to rename to a unique name, until we find one
-            exists = filter(lambda x: x.startswith(base), os.listdir(os.path.dirname(path)))
+            exists = filter(
+                lambda x: x.startswith(base),
+                os.listdir(
+                    os.path.dirname(path)))
             for filename in exists:
                 try:
-                    i = int(filename[len(base)+1:])
+                    i = int(filename[len(base) + 1:])
                     if i > highest_int:
                         highest_int = i
                 except:
@@ -43,7 +53,7 @@ class Implementation(xapi.volume.Volume_skeleton):
                 finished = True
             except OSError as exc:
                 if exc.errno == errno.EEXIST:
-                    pass # try again
+                    pass  # try again
                 else:
                     highest_int = highest_int + 1
                     raise
@@ -57,8 +67,8 @@ class Implementation(xapi.volume.Volume_skeleton):
             "description": "",
             "read_write": True,
             "virtual_size": size,
-            "physical_utilisation": 0L,
-            "uri": ["raw+file://" + new_name ]
+            "physical_utilisation": 0,
+            "uri": ["raw+file://" + new_name]
         }
 
 if __name__ == "__main__":

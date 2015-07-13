@@ -2,9 +2,12 @@
 
 import urlparse
 import os
-import xapi, xapi.volume
+import xapi
+import xapi.volume
+
 
 class Implementation(xapi.volume.SR_skeleton):
+
     def stat(self, dbg, sr):
         u = urlparse.urlparse(sr)
         virtual_allocation = 0
