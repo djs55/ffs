@@ -21,14 +21,6 @@ class Implementation(xapi.volume.Volume_skeleton):
         if not(os.path.exists(path)):
             raise xapi.volume.Volume_does_not_exist(path)
 
-        name = ""
-        description = ""
-        if os.path.exists(path + ".json"):
-            with open(path + ".json", "r") as fd:
-                js = json.load(fd)
-                name = js["name"]
-                description = js["description"]
-
         path = path
         tmp = path + ".tmp." + str(os.getpid())
         # both cp --reflink and cp may require that the image is quiesced
@@ -69,13 +61,19 @@ class Implementation(xapi.volume.Volume_skeleton):
                     highest_int = highest_int + 1
                     raise
 
-        stat = os.stat(new_name)
         key = os.path.basename(new_name)
-        size = stat.st_size
-
+        name = key
+        description = key
+        if os.path.exists(path + ".json"):
+            with open(path + ".json", "r") as fd:
+                js = json.load(fd)
+                name = js["name"]
+                description = js["description"]
         with open(new_name + ".json", "w") as json_fd:
             json.dump({"name": name, "description": description}, json_fd)
 
+        stat = os.stat(new_name)
+        size = stat.st_size
         return {
             "key": key,
             "name": name,
