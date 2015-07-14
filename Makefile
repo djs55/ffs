@@ -1,4 +1,5 @@
-DATAPATH_COMMANDS=Datapath.activate  Datapath.attach  Datapath.deactivate  Datapath.detach
+TAPDISK_COMMANDS=Plugin.Query Datapath.activate Datapath.attach Datapath.deactivate Datapath.detach Datapath.open Datapath.close
+LOOP_COMMANDS=Plugin.Query Datapath.activate  Datapath.attach  Datapath.deactivate  Datapath.detach
 FFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize Volume.set_name Volume.set_description
 BTRFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description
 RAWNFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description
@@ -16,9 +17,9 @@ XAPIPLUGINDIR?=/etc/xapi.d/plugins/
 .PHONY: install
 install:
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/datapath/loop+blkback
-	(cd datapath/loop+blkback; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/loop+blkback)
+	(cd datapath/loop+blkback; install -m 0755 $(LOOP_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/loop+blkback)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/datapath/tapdisk
-	(cd datapath/tapdisk; install -m 0755 $(DATAPATH_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/tapdisk)
+	(cd datapath/tapdisk; install -m 0755 $(TAPDISK_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/datapath/tapdisk)
 	(cd $(DESTDIR)$(SCRIPTDIR)/datapath ; ln -snf tapdisk raw+file ; ln -snf tapdisk vhd+file)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs
 	(cd volume/org.xen.xcp.storage.ffs; install -m 0755 $(FFS_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs)
