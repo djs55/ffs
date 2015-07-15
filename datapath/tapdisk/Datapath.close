@@ -4,12 +4,11 @@ import urlparse
 import os
 import xapi
 import xapi.datapath
-from xapi import tapdisk, image
-
+import xapi.volume
 
 class Implementation(xapi.datapath.Datapath_skeleton):
 
-    def close(self, dbg, uri:
+    def close(self, dbg, uri):
         u = urlparse.urlparse(uri)
         # XXX need some datapath-specific errors below
         if not(os.path.exists(u.path)):

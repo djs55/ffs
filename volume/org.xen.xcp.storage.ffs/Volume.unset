@@ -28,8 +28,13 @@ class Implementation(xapi.volume.Volume_skeleton):
 
         del keys[k]
 
+        meta = {
+            "name": name,
+            "description": description,
+            "keys": keys
+        }
         with open(path + ".json", "w") as json_fd:
-            json.dump({"name": name, "description": description, "keys": keys}, json_fd)
+            json.dump(meta, json_fd)
 
         return None
 

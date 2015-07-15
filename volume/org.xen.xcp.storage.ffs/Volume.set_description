@@ -18,16 +18,23 @@ class Implementation(xapi.volume.Volume_skeleton):
 
         name = ""
         description = ""
+        keys = {}
         if os.path.exists(path + ".json"):
             with open(path + ".json", "r") as json_fd:
                 js = json.load(json_fd)
                 name = js["name"]
                 description = js["description"]
+                keys = js["keys"]
 
         description = new_description
 
+        meta = {
+            "name": name,
+            "description": description,
+            "keys": keys
+        }
         with open(path + ".json", "w") as json_fd:
-            json.dump({"name": name, "description": description}, json_fd)
+            json.dump(keys, json_fd)
 
         return None
 

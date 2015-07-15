@@ -10,8 +10,9 @@ class Implementation(xapi.plugin.Plugin_skeleton):
         return {
             "plugin": "loopdev+blkback",
             "name": "The loopdev+blkback kernel-space datapath plugin",
-            "description": ("This plugin manages and configures loop devices which"
-                            " can be connected to VMs directly via kernel-space blkback"),
+            "description": ("This plugin manages and configures loop",
+                            " devices which can be connected to VMs",
+                            " directly via kernel-space blkback"),
             "vendor": "Citrix",
             "copyright": "(C) 2015 Citrix Inc",
             "version": "3.0",

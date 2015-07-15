@@ -53,8 +53,13 @@ class Implementation(xapi.volume.Volume_skeleton):
                     raise
                 counter = counter + 1
 
+        meta = {
+            "name": name,
+            "description": description,
+            "keys": {}
+        }
         with open(path + ".json", "w") as json_fd:
-            json.dump({"name": name, "description": description, "keys": {}}, json_fd)
+            json.dump(meta, json_fd)
 
         if size > 0:
             os.lseek(fd, size - 1, os.SEEK_SET)

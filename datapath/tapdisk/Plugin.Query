@@ -10,14 +10,14 @@ class Implementation(xapi.plugin.Plugin_skeleton):
         return {
             "plugin": "tapdisk",
             "name": "The tapdisk user-space datapath plugin",
-            "description": ("This plugin manages and configures tapdisk instances,"
-                            " backend by either raw or vhd format files"),
+            "description": ("This plugin manages and configures tapdisk"
+                            " instances backend by either raw or vhd"
+                            " format files"),
             "vendor": "Citrix",
             "copyright": "(C) 2015 Citrix Inc",
             "version": "3.0",
             "required_api_version": "3.0",
             "features": [
-            #    "NONPERSISTENT"
             ],
             "configuration": {}}
 

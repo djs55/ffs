@@ -4,8 +4,7 @@ import urlparse
 import os
 import xapi
 import xapi.datapath
-from xapi import tapdisk, image
-
+import xapi.volume
 
 class Implementation(xapi.datapath.Datapath_skeleton):
 
