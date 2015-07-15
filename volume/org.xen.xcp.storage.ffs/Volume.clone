@@ -69,8 +69,13 @@ class Implementation(xapi.volume.Volume_skeleton):
                 js = json.load(fd)
                 name = js["name"]
                 description = js["description"]
+        meta = {
+            "name": name,
+            "description": description,
+            "keys": {}
+        }
         with open(new_name + ".json", "w") as json_fd:
-            json.dump({"name": name, "description": description}, json_fd)
+            json.dump(meta, json_fd)
 
         stat = os.stat(new_name)
         size = stat.st_size
@@ -81,7 +86,8 @@ class Implementation(xapi.volume.Volume_skeleton):
             "read_write": True,
             "virtual_size": size,
             "physical_utilisation": 0,
-            "uri": ["raw+file://" + new_name]
+            "uri": ["raw+file://" + new_name],
+            "keys": {},
         }
 
 if __name__ == "__main__":

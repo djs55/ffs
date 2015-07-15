@@ -10,7 +10,7 @@ import xapi.volume
 
 class Implementation(xapi.volume.Volume_skeleton):
 
-    def set_description(self, dbg, sr, key, new_description):
+    def set(self, dbg, sr, key, k, v):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
             raise xapi.volume.Sr_not_attached(sr)
@@ -26,7 +26,7 @@ class Implementation(xapi.volume.Volume_skeleton):
                 description = js["description"]
                 keys = js["keys"]
 
-        description = new_description
+        keys[k] = v
 
         meta = {
             "name": name,
@@ -40,4 +40,4 @@ class Implementation(xapi.volume.Volume_skeleton):
 
 if __name__ == "__main__":
     cmd = xapi.volume.Volume_commandline(Implementation())
-    cmd.set_description()
+    cmd.set()
