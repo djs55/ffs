@@ -6,6 +6,7 @@ import xapi
 import xapi.datapath
 import xapi.volume
 
+
 class Implementation(xapi.datapath.Datapath_skeleton):
 
     def open(self, dbg, uri, persistent):

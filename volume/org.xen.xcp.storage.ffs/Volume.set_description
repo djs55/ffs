@@ -34,7 +34,7 @@ class Implementation(xapi.volume.Volume_skeleton):
             "keys": keys
         }
         with open(path + ".json", "w") as json_fd:
-            json.dump(keys, json_fd)
+            json.dump(meta, json_fd)
 
         return None
 
