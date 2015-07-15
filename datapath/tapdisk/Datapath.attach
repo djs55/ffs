@@ -4,6 +4,7 @@ import urlparse
 import os
 import xapi
 import xapi.datapath
+import xapi.volume
 from xapi import tapdisk, image
 
 

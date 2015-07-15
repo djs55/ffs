@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+
+import urlparse
+import os
+import os.path
+import json
+import xapi
+import xapi.volume
+
+
+class Implementation(xapi.volume.Volume_skeleton):
+
+    def unset(self, dbg, sr, key, k):
+        u = urlparse.urlparse(sr)
+        if not(os.path.isdir(u.path)):
+            raise xapi.volume.Sr_not_attached(sr)
+        path = os.path.join(u.path, key)
+
+        name = ""
+        description = ""
+        keys = {}
+        if os.path.exists(path + ".json"):
+            with open(path + ".json", "r") as json_fd:
+                js = json.load(json_fd)
+                name = js["name"]
+                description = js["description"]
+                keys = js["keys"]
+
+        del keys[k]
+
+        with open(path + ".json", "w") as json_fd:
+            json.dump({"name": name, "description": description, "keys": keys}, json_fd)
+
+        return None
+
+if __name__ == "__main__":
+    cmd = xapi.volume.Volume_commandline(Implementation())
+    cmd.unset()
