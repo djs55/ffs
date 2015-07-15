@@ -54,7 +54,7 @@ class Implementation(xapi.volume.Volume_skeleton):
                 counter = counter + 1
 
         with open(path + ".json", "w") as json_fd:
-            json.dump({"name": name, "description": description}, json_fd)
+            json.dump({"name": name, "description": description, "keys": {}}, json_fd)
 
         if size > 0:
             os.lseek(fd, size - 1, os.SEEK_SET)
@@ -71,6 +71,7 @@ class Implementation(xapi.volume.Volume_skeleton):
             "virtual_size": virtual_size,
             "physical_utilisation": physical_utilisation,
             "uri": ["raw+file://" + path],
+            "keys": {},
         }
 
 if __name__ == "__main__":

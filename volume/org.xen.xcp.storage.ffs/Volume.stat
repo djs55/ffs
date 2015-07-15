@@ -20,11 +20,13 @@ class Implementation(xapi.volume.Volume_skeleton):
         physical_utilisation = stat.st_blocks * 512
         name = key
         description = key
+        keys = {}
         if os.path.exists(path + ".json"):
             with open(path + ".json", "r") as fd:
                 js = json.load(fd)
                 name = js["name"]
                 description = js["description"]
+                keys = js["keys"]
         return {
             "key": key,
             "name": name,
@@ -32,7 +34,8 @@ class Implementation(xapi.volume.Volume_skeleton):
             "read_write": True,
             "virtual_size": virtual_size,
             "physical_utilisation": physical_utilisation,
-            "uri": ["raw+file://" + path]
+            "uri": ["raw+file://" + path],
+            "keys": keys
         }
 
 if __name__ == "__main__":
