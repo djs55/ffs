@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import urlparse
+import subprocess
 import xapi
 import xapi.volume
-from xapi.common import call
+from xapi.common import call, log
 import XenAPI
 
 
@@ -23,6 +24,16 @@ class Implementation(xapi.volume.SR_skeleton):
 
         # Make the filesystem
         u = urlparse.urlparse(uri)
+
+        # sometimes a user can believe that a device exists because
+        # they've just created it, but they don't realise that the actual
+        # device will be created by a queued udev event. Make the client's
+        # life easier by waiting for outstanding udev events to complete.
+        code = subprocess.call(["udevadm", "settle"])
+        # if that fails then log and continue
+        if code != 0:
+            log("udevadm settle exitted with code %d" % code)
+
         cmd = ["mkfs.gfs2", "-t", fsname, "-p", "lock_dlm", "-j", "16", u.path]
         call(dbg, cmd)
         return
