@@ -4,13 +4,21 @@ import urlparse
 import subprocess
 import xapi
 import xapi.volume
-
+import xapi.common
 
 class Implementation(xapi.volume.SR_skeleton):
 
     def create(self, dbg, uri, configuration):
         u = urlparse.urlparse(uri)
-        # this would be a good place to run mkfs
+        # sometimes a user can believe that a device exists because
+        # they've just created it, but they don't realise that the actual
+        # device will be created by a queued udev event. Make the client's
+        # life easier by waiting for outstanding udev events to complete.
+        code = subprocess.call(["udevadm", "settle"])
+        # if that fails then log and continue
+        if code != 0:
+            xapi.common.log("udevadm settle exitted with code %d" % code)
+
         p = subprocess.Popen(["mkfs.btrfs",
                               u.path,
                               "-f"],
