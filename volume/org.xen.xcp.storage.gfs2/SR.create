@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import urlparse
+import subprocess
 import xapi
 import xapi.volume
 from xapi.common import call, log
