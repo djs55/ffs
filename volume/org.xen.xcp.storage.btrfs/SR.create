@@ -6,6 +6,7 @@ import xapi
 import xapi.volume
 import xapi.common
 
+
 class Implementation(xapi.volume.SR_skeleton):
 
     def create(self, dbg, uri, configuration):
