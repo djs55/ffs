@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+
+import urlparse
+import os
+import errno
+import json
+import xapi
+import xapi.volume
+
+
+class Implementation(xapi.volume.Volume_skeleton):
+
+    def create(self, dbg, sr, name, description, size):
+        # [djs55/xapi-storage#33]
+        size = int(size)
+
+        u = urlparse.urlparse(sr)
+        if not(os.path.isdir(u.path)):
+            raise xapi.volume.Sr_not_attached(sr)
+        # sanitise characters used in the volume name
+        sanitised = ""
+        for c in name:
+            if c == os.sep or c in [
+                    "<",
+                    ">",
+                    ":",
+                    "\"",
+                    "/",
+                    "\"",
+                    "|",
+                    "?",
+                    "*"]:
+                sanitised = sanitised + "_"
+            else:
+                sanitised = sanitised + c
+        if sanitised == "":
+            sanitised = "unknown"
+        # attempt to create a key based on the name
+        counter = 0
+        path = None
+        key = None
+        fd = None
+        while key is None:
+            try:
+                filename = sanitised
+                if counter > 0:
+                    filename = "%s.%d" % (sanitised, counter)
+                path = os.path.join(u.path, filename)
+                fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                key = filename
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+                counter = counter + 1
+
+        meta = {
+            "name": name,
+            "description": description,
+            "keys": {}
+        }
+        with open(path + ".json", "w") as json_fd:
+            json.dump(meta, json_fd)
+            json_fd.write("\n")
+
+        if size > 0:
+            os.lseek(fd, size - 1, os.SEEK_SET)
+            os.write(fd, "\000")
+        os.close(fd)
+        stat = os.stat(path)
+        virtual_size = stat.st_size
+        physical_utilisation = stat.st_blocks * 512
+        return {
+            "key": key,
+            "name": name,
+            "description": description,
+            "read_write": True,
+            "virtual_size": virtual_size,
+            "physical_utilisation": physical_utilisation,
+            "uri": ["raw+file://" + path],
+            "keys": {},
+        }
+
+if __name__ == "__main__":
+    cmd = xapi.volume.Volume_commandline(Implementation())
+    cmd.create()

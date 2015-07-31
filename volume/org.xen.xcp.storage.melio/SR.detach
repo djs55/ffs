@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+
+import urlparse
+import subprocess
+import xapi
+import xapi.volume
+
+
+class Implementation(xapi.volume.SR_skeleton):
+
+    def detach(self, dbg, sr):
+        u = urlparse.urlparse(sr)
+        cmd = ["umount", u.path]
+        code = subprocess.call(cmd)
+        if code != 0:
+            raise xapi.volume.Unimplemented("%s failed" % str(cmd))
+        return
+
+if __name__ == "__main__":
+    cmd = xapi.volume.SR_commandline(Implementation())
+    cmd.detach()

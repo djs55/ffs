@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+
+import xapi
+import xapi.plugin
+
+
+class Implementation(xapi.plugin.Plugin_skeleton):
+
+    def query(self, dbg):
+        return {
+            "plugin": "meliofs",
+            "name": "Local MelioFS Volume plugin",
+            "description": ("This plugin creates a Melio SR on a local block"
+                            " device"),
+            "vendor": "None",
+            "copyright": "(C) 2015 Citrix Inc",
+            "version": "3.0",
+            "required_api_version": "3.0",
+            "features": [
+                "SR_ATTACH",
+                "SR_DETACH",
+                "SR_CREATE",
+                "VDI_CREATE",
+                "VDI_DESTROY",
+                "VDI_ATTACH",
+                "VDI_ATTACH_OFFLINE",
+                "VDI_DETACH",
+                "VDI_ACTIVATE",
+                "VDI_DEACTIVATE",
+                "VDI_RESIZE",
+                "SR_METADATA"],
+            "configuration": {}}
+
+if __name__ == "__main__":
+    cmd = xapi.plugin.Plugin_commandline(Implementation())
+    cmd.query()

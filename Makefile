@@ -4,6 +4,7 @@ FFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attac
 BTRFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description Volume.set Volume.unset
 RAWNFS_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.clone Volume.snapshot Volume.resize common.py Volume.set_name Volume.set_description Volume.set Volume.unset
 GFS2_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.snapshot common.py Volume.set_name Volume.set_description Volume.set Volume.unset
+MELIO_COMMANDS=Plugin.Query Plugin.diagnostics SR.create SR.ls SR.destroy SR.attach SR.detach SR.stat Volume.create Volume.destroy Volume.stat Volume.resize common.py Volume.set_name Volume.set_description Volume.set Volume.unset
 LIB_FILES=losetup.py tapdisk.py dmsetup.py nbdclient.py nbdtool.py image.py common.py poolhelper.py
 
 .PHONY: clean
@@ -23,6 +24,8 @@ install:
 	(cd $(DESTDIR)$(SCRIPTDIR)/datapath ; ln -snf tapdisk raw+file ; ln -snf tapdisk vhd+file)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs
 	(cd volume/org.xen.xcp.storage.ffs; install -m 0755 $(FFS_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.ffs)
+	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.melio
+	(cd volume/org.xen.xcp.storage.melio; install -m 0755 $(MELIO_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.melio)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.btrfs
 	(cd volume/org.xen.xcp.storage.btrfs; install -m 0755 $(BTRFS_COMMANDS) $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.btrfs)
 	mkdir -p $(DESTDIR)$(SCRIPTDIR)/volume/org.xen.xcp.storage.rawnfs

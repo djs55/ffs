@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+
+import urlparse
+import os
+import xapi
+import xapi.volume
+
+
+class Implementation(xapi.volume.SR_skeleton):
+
+    def stat(self, dbg, sr):
+        u = urlparse.urlparse(sr)
+        statvfs = os.statvfs(u.path)
+        physical_size = statvfs.f_blocks * statvfs.f_frsize
+        free_size = statvfs.f_bfree * statvfs.f_frsize
+        return {
+            "sr": sr,
+            "name": "This SR has no name",
+            "description": "This SR has no description",
+            "total_space": physical_size,
+            "free_space": free_size
+        }
+
+if __name__ == "__main__":
+    cmd = xapi.volume.SR_commandline(Implementation())
+    cmd.stat()
