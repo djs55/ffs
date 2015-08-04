@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+
+import xapi
+import xapi.volume
+
+
+class Implementation(xapi.volume.SR_skeleton):
+
+    def destroy(self, dbg, sr):
+        # no need to destroy anything
+        return
+
+if __name__ == "__main__":
+    cmd = xapi.volume.SR_commandline(Implementation())
+    cmd.destroy()
