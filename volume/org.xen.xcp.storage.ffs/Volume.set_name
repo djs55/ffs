@@ -16,12 +16,14 @@ class Implementation(xapi.volume.Volume_skeleton):
             raise xapi.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
 
+        uuid_ = None
         name = ""
         description = ""
         keys = {}
         if os.path.exists(path + ".json"):
             with open(path + ".json", "r") as json_fd:
                 js = json.load(json_fd)
+                uuid_ = js["uuid"]
                 name = js["name"]
                 description = js["description"]
                 keys = js["keys"]
@@ -29,6 +31,7 @@ class Implementation(xapi.volume.Volume_skeleton):
         name = new_name
 
         meta = {
+            "uuid": uuid_,
             "name": name,
             "description": description,
             "keys": keys
