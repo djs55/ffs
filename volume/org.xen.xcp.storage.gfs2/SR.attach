@@ -15,7 +15,6 @@ import xcp.environ
 class Implementation(xapi.volume.SR_skeleton):
 
     def attach(self, dbg, uri):
-
         # Ensure corosync+dlm are configured and up
         inventory = xcp.environ.readInventory()
         session = XenAPI.xapi_local()
@@ -23,6 +22,12 @@ class Implementation(xapi.volume.SR_skeleton):
         host = session.xenapi.host.get_by_uuid(
             inventory.get("INSTALLATION_UUID"))
         session.xenapi.host.call_plugin(host, "gfs2setup", "gfs2Setup", {})
+
+        # Notify other pool members we have arrived
+        for host in session.xenapi.host.get_all():
+            if host != my_host:
+                session.xenapi.host.call_plugin(
+                    host, "gfs2setup", "gfs2Reload", {})
 
         # Mount the gfs2 filesystem
         u = urlparse.urlparse(uri)
@@ -35,6 +40,9 @@ class Implementation(xapi.volume.SR_skeleton):
             else:
                 raise
         if not os.path.ismount(mountpoint):
+            cmd = ["modprobe", "gfs2"]
+            call(dbg, cmd)
+
             cmd = ["mount", "-t", "gfs2", "-o",
                    "noatime,nodiratime", u.path, mountpoint]
             call(dbg, cmd)
