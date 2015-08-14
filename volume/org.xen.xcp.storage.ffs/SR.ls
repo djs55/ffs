@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import uuid
 import urlparse
 import os
 import os.path
@@ -21,12 +22,14 @@ class Implementation(xapi.volume.SR_skeleton):
             path = os.path.join(u.path, filename)
             if not(os.path.isfile(os.path.realpath(path))):
                 continue
+            uuid_ = None
             name = filename
             description = filename
             keys = {}
             if os.path.exists(path + ".json"):
                 with open(path + ".json", "r") as fd:
                     js = json.load(fd)
+                    uuid_ = js["uuid"]
                     name = js["name"]
                     description = js["description"]
                     keys = js["keys"]
@@ -35,6 +38,7 @@ class Implementation(xapi.volume.SR_skeleton):
             physical_utilisation = stat.st_blocks * 512
             results.append({
                 "key": filename,
+                "uuid": uuid_,
                 "name": name,
                 "description": description,
                 "read_write": True,
