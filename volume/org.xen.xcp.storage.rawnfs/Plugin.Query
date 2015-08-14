@@ -31,7 +31,8 @@ class Implementation(xapi.plugin.Plugin_skeleton):
                 "VDI_RESIZE",
                 "VDI_CLONE",
                 "VDI_SNAPSHOT"],
-            "configuration": {}}
+            "configuration": {},
+            "required_cluster_stack": []}
 
 if __name__ == "__main__":
     cmd = xapi.plugin.Plugin_commandline(Implementation())
