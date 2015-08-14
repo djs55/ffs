@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import uuid
 import urlparse
 import os
 import errno
@@ -53,13 +54,16 @@ class Implementation(xapi.volume.Volume_skeleton):
                     raise
                 counter = counter + 1
 
+        uuid_ = str(uuid.uuid4())
         meta = {
+            "uuid": uuid_,
             "name": name,
             "description": description,
             "keys": {}
         }
         with open(path + ".json", "w") as json_fd:
             json.dump(meta, json_fd)
+            json_fd.write("\n")
 
         if size > 0:
             os.lseek(fd, size - 1, os.SEEK_SET)
@@ -70,6 +74,7 @@ class Implementation(xapi.volume.Volume_skeleton):
         physical_utilisation = stat.st_blocks * 512
         return {
             "key": key,
+            "uuid": uuid_,
             "name": name,
             "description": description,
             "read_write": True,

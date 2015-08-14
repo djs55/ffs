@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import uuid
 import errno
 import urlparse
 import subprocess
@@ -9,7 +10,7 @@ import xapi
 import xapi.volume
 import xapi.image
 import xapi.poolhelper
-
+from xapi.common import call, touch_file_unique
 
 class Implementation(xapi.volume.Volume_skeleton):
 
@@ -20,74 +21,52 @@ class Implementation(xapi.volume.Volume_skeleton):
         path = os.path.join(u.path, key)
         if not(os.path.exists(path)):
             raise xapi.volume.Volume_does_not_exist(path)
+        new_name = touch_file_unique(dbg, path, "")
 
-        path = path
-        tmp = path + ".tmp." + str(os.getpid())
         # both cp --reflink and cp may require that the image is quiesced
         xapi.poolhelper.suspend_datapath_in_pool(dbg, path)
         try:
-            code = subprocess.call(["cp", "--reflink=always", path, tmp])
+            code = subprocess.call(["cp", "--reflink=always", path, new_name])
             if code != 0:
-                code = subprocess.call(["cp", path, tmp])
+                code = subprocess.call(["cp", path, new_name])
                 if code != 0:
+                    os.unlink(new_name)
                     raise xapi.volume.Unimplemented("Copy failed?")
         finally:
             xapi.poolhelper.resume_datapath_in_pool(dbg, path)
-        base = os.path.basename(path)
-        finished = False
-        highest_int = -1
-        new_name = path
-        while not finished:
-            # Keep trying to rename to a unique name, until we find one
-            exists = filter(
-                lambda x: x.startswith(base),
-                os.listdir(
-                    os.path.dirname(path)))
-            for filename in exists:
-                try:
-                    i = int(filename[len(base) + 1:])
-                    if i > highest_int:
-                        highest_int = i
-                except:
-                    pass
-            new_name = path + "." + str(highest_int + 1)
-            try:
-                os.rename(tmp, new_name)
-                finished = True
-            except OSError as exc:
-                if exc.errno == errno.EEXIST:
-                    pass  # try again
-                else:
-                    highest_int = highest_int + 1
-                    raise
 
         key = os.path.basename(new_name)
+        uuid_ = str(uuid.uuid4())
         name = key
-        description = key
+        description = ""
+        keys = {}
         if os.path.exists(path + ".json"):
             with open(path + ".json", "r") as fd:
                 js = json.load(fd)
                 name = js["name"]
                 description = js["description"]
         meta = {
+            "uuid": uuid_,
             "name": name,
             "description": description,
-            "keys": {}
+            "keys": keys
         }
         with open(new_name + ".json", "w") as json_fd:
             json.dump(meta, json_fd)
+            json_fd.write("\n")
 
         stat = os.stat(new_name)
         size = stat.st_size
         return {
             "key": key,
+            "uuid": uuid_,
             "name": name,
             "description": description,
             "read_write": True,
             "virtual_size": size,
             "physical_utilisation": 0,
             "uri": ["raw+file://" + new_name],
-            "keys": {},
+            "keys": {}
         }
 
 if __name__ == "__main__":

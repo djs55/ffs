@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
+import uuid
 import urlparse
 import os
 import errno
+import json
 import xapi
 import xapi.volume
 from xapi.common import call
+from xapi.common import touch_file_unique
 
 
 class Implementation(xapi.volume.Volume_skeleton):
@@ -21,6 +24,7 @@ class Implementation(xapi.volume.Volume_skeleton):
         size_mib = size / 1048576
         if size % 1048576 != 0:
             size_mib = size_mib + 1
+        vsize = size_mib * 1048576
 
         # Sanitise characters used in the volume name
         sanitised = ""
@@ -41,35 +45,35 @@ class Implementation(xapi.volume.Volume_skeleton):
         if sanitised == "":
             sanitised = "unknown"
 
-        # Attempt to create a key based on the name
-        counter = 0
-        path = None
-        key = None
-        fd = None
-        while key is None:
-            try:
-                filename = "%s.vhd" % sanitised
-                if counter > 0:
-                    filename = "%s.%d.vhd" % (sanitised, counter)
-                path = os.path.join(u.path, filename)
-                fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                key = filename
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise
-                counter = counter + 1
-        os.close(fd)
+        key = touch_file_unique(dbg, sanitised, ".vhd")
+        path = os.path.join(u.path, key)
+        uuid_ = str(uuid.uuid4())
+        meta = {
+            "uuid": uuid_,
+            "name": name,
+            "description": description,
+            "keys": {}
+        }
+        with open(path + ".json", "w") as json_fd:
+            json.dump(meta, json_fd)
+            json_fd.write("\n")
 
         cmd = ["/usr/bin/vhd-util", "create", "-n", path, "-s", str(size_mib)]
         call(dbg, cmd)
 
+        cmd = ["/usr/bin/vhd-util", "query", "-n", path, "-s"]
+        psize = call(dbg, cmd)
+
         return {
             "key": key,
+            "uuid": uuid_,
             "name": name,
             "description": description,
             "read_write": True,
-            "virtual_size": size,
+            "virtual_size": vsize,
+            "physical_utilisation": psize,
             "uri": ["vhd+file://" + path],
+            "keys": {},
         }
 
 if __name__ == "__main__":
