@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import XenAPIPlugin
-from xapi import dmsetup, losetup, tapdisk, image
+from ffs import dmsetup, losetup, tapdisk, image
 
 
 def suspend_datapath(session, args):
