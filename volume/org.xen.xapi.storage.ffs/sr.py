@@ -5,12 +5,11 @@ import os
 import os.path
 import sys
 import urlparse
-import xapi
-import xapi.volume
-from ffs import log
+import xapi.storage.api.volume
+from xapi.storage import log
 
 
-class Implementation(xapi.volume.SR_skeleton):
+class Implementation(xapi.storage.api.volume.SR_skeleton):
 
     def probe(self, dbg, uri):
         raise AssertionError("not implemented")
@@ -36,7 +35,7 @@ class Implementation(xapi.volume.SR_skeleton):
     def ls(self, dbg, sr):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         results = []
         for filename in os.listdir(u.path):
             if filename.endswith(".json"):
@@ -89,7 +88,7 @@ class Implementation(xapi.volume.SR_skeleton):
 
 if __name__ == "__main__":
     log.log_call_argv()
-    cmd = xapi.volume.SR_commandline(Implementation())
+    cmd = xapi.storage.api.volume.SR_commandline(Implementation())
     base = os.path.basename(sys.argv[0])
     if base == 'SR.probe':
         cmd.probe()
@@ -106,4 +105,4 @@ if __name__ == "__main__":
     elif base == 'SR.stat':
         cmd.stat()
     else:
-        raise xapi.volume.Unimplemented(base)
+        raise xapi.storage.api.volume.Unimplemented(base)

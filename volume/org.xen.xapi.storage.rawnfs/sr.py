@@ -8,11 +8,11 @@ import os.path
 import subprocess
 import sys
 import xapi
-import xapi.volume
-from ffs import log
+import xapi.storage.api.volume
+from xapi.storage import log
 
 
-class Implementation(xapi.volume.SR_skeleton):
+class Implementation(xapi.storage.api.volume.SR_skeleton):
 
     def probe(self, dbg, uri):
         raise AssertionError("not implemented")
@@ -33,14 +33,14 @@ class Implementation(xapi.volume.SR_skeleton):
                    u.netloc + ":" + u.path, mountpoint]
             code = subprocess.call(cmd)
             if code != 0:
-                raise xapi.volume.Unimplemented(" ".join(cmd) + " failed")
+                raise xapi.storage.api.volume.Unimplemented(" ".join(cmd) + " failed")
         uri = "file://" + mountpoint
         return uri
 
     def create(self, dbg, uri, name, description, configuration):
         u = urlparse.urlparse(uri)
         if (u.scheme != "nfs" or not u.netloc or not u.path):
-            raise xapi.volume.SR_does_not_exist(
+            raise xapi.storage.api.volume.SR_does_not_exist(
                 "The SR URI %s is invalid. " % (uri) +
                 "Please provide the URI as nfs://<host><path>"
             )
@@ -48,7 +48,7 @@ class Implementation(xapi.volume.SR_skeleton):
 
 if __name__ == "__main__":
     log.log_call_argv()
-    cmd = xapi.volume.SR_commandline(Implementation())
+    cmd = xapi.storage.api.volume.SR_commandline(Implementation())
     base = os.path.basename(sys.argv[0])
     if base == "SR.probe":
         cmd.probe()
@@ -57,4 +57,4 @@ if __name__ == "__main__":
     elif base == "SR.create":
         cmd.create()
     else:
-        xapi.volume.Unimplemented(base)
+        xapi.storage.api.volume.Unimplemented(base)
