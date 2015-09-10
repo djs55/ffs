@@ -10,7 +10,6 @@ import subprocess
 import sys
 import xapi.storage.api.volume
 from xapi.storage import log
-import ffs.image
 import ffs.poolhelper
 from ffs.common import touch_file_unique
 
