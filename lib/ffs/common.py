@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import errno
-import log
+from xapi.storage import log
 import os
 import xapi
 import subprocess
