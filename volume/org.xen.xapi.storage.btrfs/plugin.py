@@ -3,11 +3,11 @@
 import os
 import sys
 import xapi
-import xapi.plugin
-from ffs import log
+import xapi.storage.api.plugin
+from xapi.storage import log
 
 
-class Implementation(xapi.plugin.Plugin_skeleton):
+class Implementation(xapi.storage.api.plugin.Plugin_skeleton):
 
     def diagnostics(self, dbg):
         return "No diagnostic data to report"
@@ -42,11 +42,11 @@ class Implementation(xapi.plugin.Plugin_skeleton):
 
 if __name__ == "__main__":
     log.log_call_argv()
-    cmd = xapi.plugin.Plugin_commandline(Implementation())
+    cmd = xapi.xapi.storage.api.plugin.Plugin_commandline(Implementation())
     base = os.path.basename(sys.argv[0])
     if base == "Plugin.diagnostics":
         cmd.diagnostics()
     elif base == "Plugin.Query":
         cmd.query()
     else:
-        raise xapi.plugin.Unimplemented(base)
+        raise xapi.storage.api.plugin.Unimplemented(base)

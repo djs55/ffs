@@ -9,9 +9,9 @@ import stat
 import subprocess
 import sys
 import xapi
-import xapi.volume
+import xapi.storage.api.volume
+from xapi.storage import log
 from common import mountpoint_root
-from ffs import log
 
 
 def get_mountpoint(attach_uri):
@@ -21,7 +21,7 @@ def get_mountpoint(attach_uri):
     return os.path.abspath(mountpoint_root + u.path)
 
 
-class Implementation(xapi.volume.SR_skeleton):
+class Implementation(xapi.storage.api.volume.SR_skeleton):
 
     def probe(self, dbg, uri):
         u = urlparse.urlparse(uri)
@@ -66,7 +66,7 @@ class Implementation(xapi.volume.SR_skeleton):
             code = subprocess.call(["mount", "-t", "btrfs", u.path,
                                     mountpoint])
             if code != 0:
-                raise xapi.volume.Unimplemented(
+                raise xapi.storage.api.volume.Unimplemented(
                     "mount -t btrfs %s %s failed" % (u.path, mountpoint))
         uri = "file://" + mountpoint
         return uri
@@ -105,7 +105,7 @@ class Implementation(xapi.volume.SR_skeleton):
                              stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
         if p.returncode != 0:
-            raise xapi.volume.Unimplemented("mkfs.btrfs failed on %s" % u.path)
+            raise xapi.storage.api.volume.Unimplemented("mkfs.btrfs failed on %s" % u.path)
         local_uri = self.attach(dbg, uri)
         with open(urlparse.urlparse(local_uri).path + "/.json", "w") as fd:
             meta = {
@@ -152,7 +152,7 @@ class Implementation(xapi.volume.SR_skeleton):
 
 if __name__ == "__main__":
     log.log_call_argv()
-    cmd = xapi.volume.SR_commandline(Implementation())
+    cmd = xapi.storage.api.volume.SR_commandline(Implementation())
     base = os.path.basename(sys.argv[0])
     try:
         if base == "SR.probe":
@@ -172,6 +172,6 @@ if __name__ == "__main__":
         elif base == "SR.detach":
             cmd.detach()
         else:
-            raise xapi.volume.Unimplemented(base)
+            raise xapi.storage.api.volume.Unimplemented(base)
     except Exception, e:
         xapi.handle_exception(e)

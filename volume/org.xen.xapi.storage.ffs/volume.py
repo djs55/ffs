@@ -8,35 +8,34 @@ import os
 import os.path
 import subprocess
 import sys
-import xapi.volume
-import ffs.image
-import ffs.poolhelper
-from ffs.common import touch_file_unique
-from ffs import log
+import xapi.storage.api.volume
+from xapi.storage import log
+import xapi.storage.ffs.poolhelper
+from xapi.storage.ffs.common import touch_file_unique
 
 
-class Implementation(xapi.volume.Volume_skeleton):
+class Implementation(xapi.storage.api.volume.Volume_skeleton):
 
     def clone(self, dbg, sr, key):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
         if not(os.path.exists(path)):
-            raise xapi.volume.Volume_does_not_exist(path)
+            raise xapi.storage.api.volume.Volume_does_not_exist(path)
         new_name = touch_file_unique(dbg, path, "")
 
         # both cp --reflink and cp may require that the image is quiesced
-        ffs.poolhelper.suspend_datapath_in_pool(dbg, path)
+        xapi.storage.ffs.poolhelper.suspend_datapath_in_pool(dbg, path)
         try:
             code = subprocess.call(["cp", "--reflink=always", path, new_name])
             if code != 0:
                 code = subprocess.call(["cp", path, new_name])
                 if code != 0:
                     os.unlink(new_name)
-                    raise xapi.volume.Unimplemented("Copy failed?")
+                    raise xapi.storage.api.volume.Unimplemented("Copy failed?")
         finally:
-            ffs.poolhelper.resume_datapath_in_pool(dbg, path)
+            xapi.storage.ffs.poolhelper.resume_datapath_in_pool(dbg, path)
 
         key = os.path.basename(new_name)
         uuid_ = str(uuid.uuid4())
@@ -78,7 +77,7 @@ class Implementation(xapi.volume.Volume_skeleton):
 
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         # sanitise characters used in the volume name
         sanitised = ""
         for c in name:
@@ -148,7 +147,7 @@ class Implementation(xapi.volume.Volume_skeleton):
     def destroy(self, dbg, sr, key):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
         if os.path.exists(path):
             os.unlink(path)
@@ -161,10 +160,10 @@ class Implementation(xapi.volume.Volume_skeleton):
         u = urlparse.urlparse(sr)
         path = os.path.join(u.path, key)
         if not(os.path.exists(path)):
-            raise xapi.volume.Volume_does_not_exist(key)
+            raise xapi.storage.api.volume.Volume_does_not_exist(key)
         size = os.stat(path).st_size
         if new_size < size:
-            raise xapi.volume.Unimplemented("Shrinking is not supported")
+            raise xapi.storage.api.volume.Unimplemented("Shrinking is not supported")
         elif new_size == size:
             # No action needed
             pass
@@ -183,7 +182,7 @@ class Implementation(xapi.volume.Volume_skeleton):
     def set(self, dbg, sr, key, k, v):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
 
         uuid_ = None
@@ -215,7 +214,7 @@ class Implementation(xapi.volume.Volume_skeleton):
     def set_description(self, dbg, sr, key, new_description):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
 
         uuid_ = None
@@ -247,7 +246,7 @@ class Implementation(xapi.volume.Volume_skeleton):
     def set_name(self, dbg, sr, key, new_name):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
 
         uuid_ = None
@@ -279,10 +278,10 @@ class Implementation(xapi.volume.Volume_skeleton):
     def snapshot(self, dbg, sr, key):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
         if not(os.path.exists(path)):
-            raise xapi.volume.Volume_does_not_exist(path)
+            raise xapi.storage.api.volume.Volume_does_not_exist(path)
         new_name = touch_file_unique(dbg, path, "")
 
         # both cp --reflink and cp may require that the image is quiesced
@@ -293,7 +292,7 @@ class Implementation(xapi.volume.Volume_skeleton):
                 code = subprocess.call(["cp", path, new_name])
                 if code != 0:
                     os.unlink(new_name)
-                    raise xapi.volume.Unimplemented("Copy failed?")
+                    raise xapi.storage.api.volume.Unimplemented("Copy failed?")
         finally:
             ffs.poolhelper.resume_datapath_in_pool(dbg, path)
 
@@ -335,7 +334,7 @@ class Implementation(xapi.volume.Volume_skeleton):
         u = urlparse.urlparse(sr)
         path = os.path.join(u.path, key)
         if not(os.path.exists(path)):
-            raise xapi.volume.Volume_does_not_exist(key)
+            raise xapi.storage.api.volume.Volume_does_not_exist(key)
         stat = os.stat(path)
         virtual_size = stat.st_size
         physical_utilisation = stat.st_blocks * 512
@@ -367,7 +366,7 @@ class Implementation(xapi.volume.Volume_skeleton):
     def unset(self, dbg, sr, key, k):
         u = urlparse.urlparse(sr)
         if not(os.path.isdir(u.path)):
-            raise xapi.volume.Sr_not_attached(sr)
+            raise xapi.storage.api.volume.Sr_not_attached(sr)
         path = os.path.join(u.path, key)
 
         uuid_ = None
@@ -398,7 +397,7 @@ class Implementation(xapi.volume.Volume_skeleton):
 
 if __name__ == "__main__":
     log.log_call_argv()
-    cmd = xapi.volume.Volume_commandline(Implementation())
+    cmd = xapi.storage.api.volume.Volume_commandline(Implementation())
     base = os.path.basename(sys.argv[0])
     if base == "Volume.clone":
         cmd.clone()
@@ -421,4 +420,4 @@ if __name__ == "__main__":
     elif base == "Volume.unset":
         cmd.unset()
     else:
-        raise xapi.volume.Unimplemented(base)
+        raise xapi.storage.api.volume.Unimplemented(base)

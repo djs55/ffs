@@ -1,4 +1,4 @@
-import xapi.volume
+import xapi.storage.api.volume
 import XenAPI
 
 
@@ -30,7 +30,7 @@ def call_plugin_in_pool(dbg, plugin_name, plugin_function, args):
                 args)
             if resulttext != "True":
                 # ToDo: We ought to raise something else
-                raise xapi.volume.Unimplemented(
+                raise xapi.storage.api.volume.Unimplemented(
                     "Failed to get hostref %s to run %s(%s)" %
                     (host_ref, plugin_name, plugin_function, args))
     except:
