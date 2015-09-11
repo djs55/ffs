@@ -10,8 +10,8 @@ import subprocess
 import sys
 import xapi.storage.api.volume
 from xapi.storage import log
-import ffs.poolhelper
-from ffs.common import touch_file_unique
+from xapi.storage import ffs.poolhelper
+from xapi.storage.ffs.common import touch_file_unique
 
 
 class Implementation(xapi.storage.api.volume.Volume_skeleton):
