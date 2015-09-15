@@ -42,7 +42,7 @@ class Implementation(xapi.storage.api.plugin.Plugin_skeleton):
 
 if __name__ == "__main__":
     log.log_call_argv()
-    cmd = xapi.xapi.storage.api.plugin.Plugin_commandline(Implementation())
+    cmd = xapi.storage.api.plugin.Plugin_commandline(Implementation())
     base = os.path.basename(sys.argv[0])
     if base == "Plugin.diagnostics":
         cmd.diagnostics()
